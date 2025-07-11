@@ -1,0 +1,47 @@
+.card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.2);
+
+  border: solid 1px #ccc;
+  display: flex;
+  flex: 1;
+  min-width: 180px;
+}
+
+.card-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%; /* Ensure full width */
+}
+
+.card-info {
+  width: 100%; /* Ensure full width */
+}
+
+.card-info-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%; /* Critical for space-between to work */
+  margin: 0; /* Reset margins */
+  padding: 0; /* Reset padding */
+}
+
+.card-info h4 {
+  font-size: 0.9rem;
+  color: #666;
+  margin: 0; /* Remove default h4 margin */
+  padding: 0;
+}
+
+.card-icon {
+  font-size: 1.5rem;
+  margin-left: 8px; /* Add spacing if needed */
+}
+
+.card-info h2 {
+  margin: 4px 0 0;
+}

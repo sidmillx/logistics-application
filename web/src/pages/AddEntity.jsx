@@ -1,0 +1,97 @@
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+const AddEntity = () => {
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+  });
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch("http://localhost:5000/api/admin/entities", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      })
+
+      if(!res.ok) {
+        throw new Error("Failed to add entity");
+      }
+
+      const data = await res.json();
+      console.log("Entity added successfully:", data);
+      navigate("/entities");
+
+  }catch (error) {
+      console.error("Error adding entity:", error);
+      alert("Failed to add entity. Please try again.");
+    }
+  };
+
+  return (
+    <div>
+      <h1>Add New Entity</h1>
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          background: "#fff",
+          padding: "24px",
+          borderRadius: "8px",
+          maxWidth: "500px",
+          boxShadow: "0 2px 6px rgba(0,0,0,0.1)"
+        }}
+      >
+       
+        <div style={{ marginBottom: "16px" }}>
+          <label>Entity Name:</label><br />
+          <input
+            type="text"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            required
+            style={{ width: "100%", padding: "8px" }}
+          />
+        </div>
+
+        <div style={{ marginBottom: "16px" }}>
+          <label>Description(optional):</label><br />
+          <input
+            type="text"
+            name="description"
+            value={formData.description}
+            onChange={handleChange}
+            required
+            style={{ width: "100%", padding: "8px" }}
+          />
+        </div>
+        
+        
+        <button
+          type="submit"
+          style={{
+            padding: "10px 20px",
+            backgroundColor: "#1976d2",
+            color: "#fff",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer"
+          }}
+        >
+          Save Entity
+        </button>
+      </form>
+    </div>
+  );
+};
+
+export default AddEntity;

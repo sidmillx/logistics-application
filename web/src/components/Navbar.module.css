@@ -1,0 +1,59 @@
+/* Make the navbar fixed on the left */
+nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;           /* Full height */
+  width: 250px;            /* Adjust width as needed */
+  background-color: #00204D; /* Dark background */
+  padding-top: 20px;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+
+  font-family: 'Poppins', sans-serif;
+}
+
+
+
+/* Remove default list styling */
+nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Style each list item */
+nav li {
+  margin: 10px 0;
+}
+
+/* Style the links */
+nav a {
+  display: flex;
+  align-items: center;
+  color: white;
+  text-decoration: none;
+  padding: 10px 20px;
+  transition: background 0.2s;
+}
+
+/* Highlight on hover */
+nav a:hover {
+  background-color: #2e2e42;
+}
+
+/* Icon styling */
+nav span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+}
+
+/* Make all images white */
+nav img {
+  filter: brightness(0) invert(1);
+  width: 20px;
+  height: 20px;
+}

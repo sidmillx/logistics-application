@@ -1,0 +1,34 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1752141288888,
+      "tag": "0000_jazzy_husk",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1752201593053,
+      "tag": "0001_new_shooting_star",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1752204048265,
+      "tag": "0002_long_devos",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1752204893714,
+      "tag": "0003_cold_marvel_boy",
+      "breakpoints": true
+    }
+  ]
+}
