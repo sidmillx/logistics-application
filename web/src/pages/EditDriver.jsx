@@ -1,8 +1,11 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "react-toastify";
 
 const EditDriver = () => {
   const navigate = useNavigate();
+  const { id } = useParams(); // Get driver ID from URL
+
   const [formData, setFormData] = useState({
     name: "",
     entity: "",
@@ -10,16 +13,56 @@ const EditDriver = () => {
     status: "Available",
   });
 
+  // Fetch driver data on load
+  useEffect(() => {
+    const fetchDriver = async () => {
+      try {
+        const res = await fetch(`http://localhost:5000/api/admin/drivers/${id}`);
+        const data = await res.json();
+        setFormData({
+          name: data.name || "",
+          entity: data.company || "",
+          contact: data.phone || "",
+          status: data.status || "Available",
+        });
+
+        console.log("Driver data loaded:", data);
+      } catch (err) {
+        toast.error("Failed to load driver details");
+        console.error(err);
+      }
+    };
+
+    if (id) fetchDriver();
+  }, [id]);
+
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Here you could send to your backend API
-    console.log("New Driver:", formData);
-    // Redirect back to Driver Management
-    navigate("/driver-management");
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/admin/drivers/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (res.ok) {
+        toast.success("Driver updated successfully");
+        navigate("/driver-management");
+      } else {
+        const errorData = await res.json();
+        toast.error(errorData.message || "Failed to update driver");
+      }
+    } catch (err) {
+      toast.error("Update failed");
+      console.error(err);
+    }
   };
 
   return (
@@ -32,11 +75,11 @@ const EditDriver = () => {
           padding: "24px",
           borderRadius: "8px",
           maxWidth: "500px",
-          boxShadow: "0 2px 6px rgba(0,0,0,0.1)"
+          boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
         }}
       >
         <div style={{ marginBottom: "16px" }}>
-          <label>Driver Name:</label><br />
+          <label>Driver Name:</label>
           <input
             type="text"
             name="name"
@@ -46,8 +89,9 @@ const EditDriver = () => {
             style={{ width: "100%", padding: "8px" }}
           />
         </div>
+
         <div style={{ marginBottom: "16px" }}>
-          <label>Entity:</label><br />
+          <label>Entity:</label>
           <input
             type="text"
             name="entity"
@@ -57,8 +101,9 @@ const EditDriver = () => {
             style={{ width: "100%", padding: "8px" }}
           />
         </div>
+
         <div style={{ marginBottom: "16px" }}>
-          <label>Contact:</label><br />
+          <label>Contact:</label>
           <input
             type="text"
             name="contact"
@@ -68,8 +113,9 @@ const EditDriver = () => {
             style={{ width: "100%", padding: "8px" }}
           />
         </div>
+
         <div style={{ marginBottom: "16px" }}>
-          <label>Status:</label><br />
+          <label>Status:</label>
           <select
             name="status"
             value={formData.status}
@@ -80,6 +126,7 @@ const EditDriver = () => {
             <option value="In Use">In Use</option>
           </select>
         </div>
+
         <button
           type="submit"
           style={{
@@ -88,7 +135,7 @@ const EditDriver = () => {
             color: "#fff",
             border: "none",
             borderRadius: "4px",
-            cursor: "pointer"
+            cursor: "pointer",
           }}
         >
           Save Driver

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "react-toastify";
+
 
 const EditVehicle = () => {
   const navigate = useNavigate();
@@ -10,26 +12,40 @@ const EditVehicle = () => {
     make: "",
     model: "",
     status: "available",
+    entityId: "",
   });
 
+  const [entities, setEntities] = useState([]);
+
+  // Fetch entities and vehicle on mount
   useEffect(() => {
-    const fetchVehicle = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/admin/vehicles/${id}`);
-        if (!res.ok) throw new Error("Failed to fetch vehicle");
-        const data = await res.json();
+        const [entityRes, vehicleRes] = await Promise.all([
+          fetch("http://localhost:5000/api/admin/entities"),
+          fetch(`http://localhost:5000/api/admin/vehicles/${id}`),
+        ]);
+
+        if (!entityRes.ok || !vehicleRes.ok) throw new Error("Fetch error");
+
+        const entityData = await entityRes.json();
+        const vehicleData = await vehicleRes.json();
+
+        setEntities(entityData);
         setFormData({
-          plateNumber: data.plateNumber || "",
-          make: data.make || "",
-          model: data.model || "",
-          status: data.status || "available",
+          plateNumber: vehicleData.plateNumber || "",
+          make: vehicleData.make || "",
+          model: vehicleData.model || "",
+          status: vehicleData.status || "available",
+          entityId: vehicleData.entityId || "",
         });
       } catch (err) {
-        console.error("Error loading vehicle:", err);
+        console.error("Error fetching data:", err);
+        alert("Failed to load vehicle or entities");
       }
     };
 
-    fetchVehicle();
+    fetchData();
   }, [id]);
 
   const handleChange = (e) => {
@@ -49,12 +65,12 @@ const EditVehicle = () => {
       });
 
       if (!res.ok) throw new Error("Failed to update vehicle");
-      alert("Vehicle updated successfully!");
+
+      toast.success("Vehicle updated successfully!");
       navigate("/vehicles");
     } catch (err) {
       console.error("Update failed:", err);
-      alert("Error updating vehicle");
-    }
+      toast.error("Failed to update vehicle. Please try again.");}
   };
 
   return (
@@ -120,6 +136,24 @@ const EditVehicle = () => {
           </select>
         </div>
 
+        <div style={{ marginBottom: "16px" }}>
+          <label>Entity:</label><br />
+          <select
+            name="entityId"
+            value={formData.entityId}
+            onChange={handleChange}
+            required
+            style={{ width: "100%", padding: "8px" }}
+          >
+            <option value="">-- Select Entity --</option>
+            {entities.map((entity) => (
+              <option key={entity.id} value={entity.id}>
+                {entity.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <button
           type="submit"
           style={{
@@ -131,7 +165,7 @@ const EditVehicle = () => {
             cursor: "pointer",
           }}
         >
-          Save Vehicle
+          Save Changes
         </button>
       </form>
     </div>

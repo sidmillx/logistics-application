@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+
 
 const AddDriver = () => {
   const navigate = useNavigate();
@@ -49,11 +51,13 @@ const AddDriver = () => {
       }
 
       const data = await res.json();
-      console.log("Driver added successfully:", data);
+      // console.log("Driver added successfully:", data);
+      toast.success("Driver added successfully!");
       navigate("/driver-management");; // Redirect to drivers list or another page
     } catch (error) {
       console.error("Error adding driver:", error);
       alert("Failed to add driver. Please try again.");
+      toast.error("Failed to add driver. Please try again.");
     }
   }
 

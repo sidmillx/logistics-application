@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
+import { toast } from "react-toastify";
+
 
 const EditEntity = () => {
   const navigate = useNavigate();
@@ -43,11 +45,11 @@ const EditEntity = () => {
        body: JSON.stringify(formData),
      });
      if (!res.ok) throw new Error("Failed to update entity");
-     alert("Entity updated successfully!");
+     toast.success("Entity updated successfully!");
      navigate("/entities");
    } catch (err) {
      console.error("Update failed:", err);
-     alert("Error updating entity");
+     toast.error("Failed to update entity. Please try again.");
    }
   };
 

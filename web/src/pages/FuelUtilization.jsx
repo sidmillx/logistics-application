@@ -6,6 +6,7 @@ import FilterButtons from "../components/FilterButtons";
 import fuelIcon from "../assets/icons/fuel.svg";
 import tuneIcon from "../assets/icons/tune.svg";
 import chartIcon from "../assets/icons/chart.svg";
+import { Link } from "react-router-dom";
 
 const FuelUtilization = () => {
   const [filter, setFilter] = useState("litres");
@@ -36,7 +37,7 @@ const FuelUtilization = () => {
     { key: "fuelCost", title: "Fuel Cost" },
     { key: "actions", title: "Actions", render: row => (
       <Link to={`/vehicles/${row.id}/fuel`}>
-        <button className="link-button">View Fuel Logs</button>
+        <button className="link-button" style={{ padding: "10px", background: "transparent", border: "none", color: "steelblue", cursor: "pointer" }}>View Fuel Logs</button>
       </Link>
     )},
   ];
@@ -44,15 +45,28 @@ const FuelUtilization = () => {
   return (
     <div>
       <h1>Fuel Utilization</h1>
-      <div className="cards">
+      <div className="cards" style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>
         <Card title="Total Litres Consumed" value={`${summary.totalLitres} L`} icon={<img src={fuelIcon} />} />
         <Card title="AVG Litres / Trip" value={`${summary.avgLitresPerTrip} L`} icon={<img src={tuneIcon} />} />
         <Card title="Total Fuel Cost" value={`E${summary.totalCost}`} icon={<img src={chartIcon} />} />
         <Card title="AVG Cost / Km" value={`E${summary.avgCostPerKm}`} icon={<img src={chartIcon} />} />
       </div>
 
-      <div className="charts">
-        <section>
+       <div
+        style={{
+          display: "flex",
+          gap: "16px",
+          marginBottom: "20px",
+        }}
+      >
+        <section style={{
+            flex: 1,
+            background: "#fff",
+            padding: "16px",
+            borderRadius: "8px",
+            boxShadow: "0 2px 3px rgba(0,0,0,0.2)",
+            border: "solid 1px #ccc",
+          }}>
           <h3>Fuel over Time</h3>
           <CustomBarChart data={chartData} dataKey={filter} xKey="month" />
           <FilterButtons options={[
@@ -60,7 +74,14 @@ const FuelUtilization = () => {
             { label: "By hours", value: "hours" },
           ]} active={filter} onChange={setFilter} />
         </section>
-        <section>
+        <section style={{
+            flex: 1,
+            background: "#fff",
+            padding: "16px",
+            borderRadius: "8px",
+            boxShadow: "0 2px 3px rgba(0,0,0,0.2)",
+            border: "solid 1px #ccc",
+          }}>
           <h3>Trips by Entity</h3>
           <CustomBarChart data={chartData /* or separate endpoint */} dataKey={filter} xKey="entityName" />
           <FilterButtons

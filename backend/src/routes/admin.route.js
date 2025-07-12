@@ -197,6 +197,27 @@ router.get("/summary", async (req, res) => {
 })
 
 
+// admin.route.ts or vehicles.route.ts
+
+router.post("/vehicles", async (req, res) => {
+  const { plateNumber, model, make, status, entityId } = req.body;
+
+  if (!plateNumber || !model || !make || !status || !entityId) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  try {
+    const [vehicle] = await db
+      .insert(vehicles)
+      .values({ plateNumber, model, make, status, entityId })
+      .returning();
+
+    res.status(201).json(vehicle);
+  } catch (err) {
+    console.error("Error creating vehicle:", err);
+    res.status(500).json({ error: "Failed to create vehicle" });
+  }
+});
 
 
 router.post("/entities", async (req, res) => {
@@ -225,14 +246,7 @@ router.put("/entities/:id", async (req, res) => {
 });
 
 
-router.delete("/entities/:id", async (req, res) => {
-  try {
-    await db.delete(entities).where(eq(entities.id, req.params.id));
-    res.json({ message: "Entity deleted" });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to delete entity" });
-  }
-});
+
 
 // ==== VEHICLE ASSIGNMENTS ====
 router.post("/assignments", async (req, res) => {
@@ -422,6 +436,92 @@ router.put("/vehicles/:id", async (req, res) => {
     res.status(500).json({ error: "Failed to update vehicle" });
   }
 });
+
+router.put("/drivers/:id", async (req, res) => {
+  const driverId = req.params.id;
+  const { name, contact, entity, status } = req.body;
+
+  try {
+    // Fetch the entity ID by name (assuming frontend sends entity name)
+    const entityResult = await db
+      .select({ id: entities.id })
+      .from(entities)
+      .where(eq(entities.name, entity))
+      .limit(1);
+
+    if (entityResult.length === 0) {
+      return res.status(400).json({ message: "Entity not found" });
+    }
+
+    const entityId = entityResult[0].id;
+
+    // Update the driver
+    const result = await db
+      .update(usersTable)
+      .set({
+        fullname: name,
+        phone: contact,
+        status,
+        entityId,
+      })
+      .where(eq(usersTable.id, driverId));
+
+    res.json({ message: "Driver updated successfully" });
+  } catch (err) {
+    console.error("Update driver error:", err);
+    res.status(500).json({ message: "Failed to update driver" });
+  }
+});
+
+
+// GET /api/admin/vehicles/:id
+router.get("/vehicles/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const [vehicle] = await db
+      .select()
+      .from(vehicles)
+      .where(eq(vehicles.id, id));
+
+    if (!vehicle) return res.status(404).json({ error: "Vehicle not found" });
+
+    res.json(vehicle);
+  } catch (err) {
+    console.error("Fetch vehicle error:", err);
+    res.status(500).json({ error: "Failed to fetch vehicle" });
+  }
+});
+
+
+// DELETE a driver by ID
+router.delete("/drivers/:id", async (req, res) => {
+  const driverId = req.params.id;
+
+  try {
+    // Delete from `drivers` table first (child)
+    await db.delete(drivers).where(eq(drivers.id, driverId));
+
+    // Then delete from `users` table (parent)
+    await db.delete(usersTable).where(eq(usersTable.id, driverId));
+
+    res.status(200).json({ message: "Driver deleted successfully" });
+  } catch (error) {
+    console.error("Delete driver error:", error);
+    res.status(500).json({ error: "Failed to delete driver" });
+  }
+});
+
+
+router.delete("/entities/:id", async (req, res) => {
+  try {
+    await db.delete(entities).where(eq(entities.id, req.params.id));
+    res.json({ message: "Entity deleted" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete entity" });
+  }
+});
+
 
 
 
@@ -639,7 +739,7 @@ router.get("/fuel-utilization/table", async (req, res) => {
     const result = await db
       .select({
         id: vehicles.id,
-        vehicleReg: vehicles.registrationNumber,
+        vehicleReg: vehicles.plateNumber,
         entityName: entities.name,
         totalLitresUsed: sql`SUM(${fuelLogs.litres})`.as("totalLitresUsed"),
         fuelCost: sql`SUM(${fuelLogs.cost})`.as("fuelCost"),
@@ -713,6 +813,80 @@ router.get("/fuel-utilization/chart", async (req, res) => {
 
 
 
+// GET /api/admin/dashboard/summary
+router.get("/dashboard/summary", async (req, res) => {
+  try {
+    const [totalTrips, topDriver, topVehicle, litresPer100Km, costPerKm] = await Promise.all([
+      db.select({ count: sql`COUNT(*)` }).from(trips),
+      db
+        .select({ name: usersTable.fullname, trips: sql`COUNT(*)` })
+        .from(trips)
+        .leftJoin(usersTable, eq(trips.driverId, usersTable.id))
+        .groupBy(usersTable.fullname)
+        .orderBy(sql`COUNT(*) DESC`)
+        .limit(1),
+      db
+      .select({ plate: vehicles.plateNumber, km: sql`SUM("trips"."odometer_end" - "trips"."odometer_start")` })
+      .from(trips)
+      .leftJoin(vehicles, eq(trips.vehicleId, vehicles.id))
+      .groupBy(vehicles.plateNumber)
+      .orderBy(sql`SUM("trips"."odometer_end" - "trips"."odometer_start") DESC`)
+      .limit(1),
+
+      // Calculate fuel efficiency and cost (mocked here, adjust logic)
+      Promise.resolve(84),
+      Promise.resolve(49.50),
+    ]);
+
+    res.json({
+      totalTrips: Number(totalTrips[0].count),
+      topDriver: topDriver[0]?.name + ` (${topDriver[0]?.trips} trips)`,
+      topVehicle: topVehicle[0]?.plate + ` (${topVehicle[0]?.km} km)`,
+      litresPer100Km: litresPer100Km,
+      costPerKm: costPerKm,
+    });
+  } catch (err) {
+    console.error("Dashboard summary error:", err);
+    res.status(500).json({ message: "Failed to fetch summary" });
+  }
+});
+
+
+// GET /api/admin/dashboard/driver-utilization
+router.get("/dashboard/driver-utilization", async (req, res) => {
+  try {
+    const result = await db
+      .select({ name: usersTable.fullname, trips: sql`COUNT(*)` })
+      .from(trips)
+      .leftJoin(usersTable, eq(trips.driverId, usersTable.id))
+      .groupBy(usersTable.fullname)
+      .orderBy(sql`COUNT(*) DESC`)
+      .limit(5);
+    res.json(result);
+  } catch (err) {
+    console.error("Driver utilization error:", err);
+    res.status(500).json({ message: "Failed to fetch driver utilization" });
+  }
+});
+
+
+// GET /api/admin/dashboard/vehicle-utilization
+router.get("/dashboard/vehicle-utilization", async (req, res) => {
+  try {
+    const result = await db
+      .select({ name: vehicles.plateNumber, km: sql`SUM("trips"."odometer_end" - "trips"."odometer_start")` })
+      .from(trips)
+      .leftJoin(vehicles, eq(trips.vehicleId, vehicles.id))
+      .groupBy(vehicles.plateNumber)
+      .orderBy(sql`SUM("trips"."odometer_end" - "trips"."odometer_start") DESC`)
+      .limit(5);
+
+    res.json(result);
+  } catch (err) {
+    console.error("Vehicle utilization error:", err);
+    res.status(500).json({ message: "Failed to fetch vehicle utilization" });
+  }
+});
 
 
 export default router;

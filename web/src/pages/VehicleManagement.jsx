@@ -9,6 +9,9 @@ import truckIcon from "../assets/icons/truck.svg";
 import trafficIcon from "../assets/icons/traffic.svg";
 import { useState, useEffect } from "react";
 
+import Swal from 'sweetalert2';
+import { toast } from 'react-toastify';
+
   const VehicleManagement = () => {
   const [vehicles, setVehicles] = useState([]);
   const [summary, setSummary] = useState({
@@ -40,37 +43,48 @@ import { useState, useEffect } from "react";
   }, []);
 
   const handleDelete = async (id) => {
-  if (!window.confirm("Are you sure you want to delete this vehicle?")) return;
+  const result = await Swal.fire({
+    title: 'Are you sure?',
+    text: 'This action cannot be undone.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'Yes, delete it!',
+  });
+
+  if (!result.isConfirmed) return;
 
   try {
     const res = await fetch(`http://localhost:5000/api/admin/vehicles/${id}`, {
-      method: "DELETE",
+      method: 'DELETE',
     });
 
-    if (!res.ok) throw new Error("Failed to delete");
+    if (!res.ok) throw new Error('Failed to delete');
 
-    // Update UI by filtering out the deleted vehicle
+    // Update the UI
     setVehicles((prev) => prev.filter((v) => v.id !== id));
-    alert("Vehicle deleted successfully");
+
+    toast.success('Vehicle deleted successfully');
   } catch (err) {
-    console.error("Delete failed:", err);
-    alert("Error deleting vehicle");
+    console.error('Delete failed:', err);
+    toast.error('Error deleting vehicle');
   }
 };
 
 
 
-  const tableData = [
-    { id: "TR208", status: "In Use", assignedDriver: "Bheki Dlamini", odometer: "27, 987 km", location: "Matsapha", lastUpdate: "2025-06-25" },
-    { id: "TR209", status: "Available", assignedDriver: "Sandile Dlamini", odometer: "13, 456 km", location: "Mbabane", lastUpdate: "2025-06-24" },
-    { id: "TR210", status: "In Use", assignedDriver: "Mlamuli M.", odometer: "45, 678 km", location: "Manzini", lastUpdate: "2025-06-23" },
-    { id: "TR211", status: "In Use", assignedDriver: "Sive L.", odometer: "28, 123 km", location: "Nhlangano", lastUpdate: "2025-06-22" },
-    { id: "TR212", status: "Available", assignedDriver: "Banele D.", odometer: "34, 890 km", location: "Siteki", lastUpdate: "2025-06-21" },
-    { id: "TR213", status: "In Use", assignedDriver: "Thandiwe M.", odometer: "56, 789 km", location: "Hlatikulu", lastUpdate: "2025-06-20" },
-    { id: "TR214", status: "Available", assignedDriver: "Sipho Nkosi", odometer: "22, 345 km", location: "Lobamba", lastUpdate: "2025-06-19" },
-    { id: "TR215", status: "In Use", assignedDriver: "Lindiwe S.", odometer: "18, 456 km", location: "Piggs Peak", lastUpdate: "2025-06-18" },
-    { id: "TR216", status: "Available", assignedDriver: "Musa M.", odometer: "30, 678 km", location: "Big Bend", lastUpdate: "2025-06-17" },
-  ];
+  // const tableData = [
+  //   { id: "TR208", status: "In Use", assignedDriver: "Bheki Dlamini", odometer: "27, 987 km", location: "Matsapha", lastUpdate: "2025-06-25" },
+  //   { id: "TR209", status: "Available", assignedDriver: "Sandile Dlamini", odometer: "13, 456 km", location: "Mbabane", lastUpdate: "2025-06-24" },
+  //   { id: "TR210", status: "In Use", assignedDriver: "Mlamuli M.", odometer: "45, 678 km", location: "Manzini", lastUpdate: "2025-06-23" },
+  //   { id: "TR211", status: "In Use", assignedDriver: "Sive L.", odometer: "28, 123 km", location: "Nhlangano", lastUpdate: "2025-06-22" },
+  //   { id: "TR212", status: "Available", assignedDriver: "Banele D.", odometer: "34, 890 km", location: "Siteki", lastUpdate: "2025-06-21" },
+  //   { id: "TR213", status: "In Use", assignedDriver: "Thandiwe M.", odometer: "56, 789 km", location: "Hlatikulu", lastUpdate: "2025-06-20" },
+  //   { id: "TR214", status: "Available", assignedDriver: "Sipho Nkosi", odometer: "22, 345 km", location: "Lobamba", lastUpdate: "2025-06-19" },
+  //   { id: "TR215", status: "In Use", assignedDriver: "Lindiwe S.", odometer: "18, 456 km", location: "Piggs Peak", lastUpdate: "2025-06-18" },
+  //   { id: "TR216", status: "Available", assignedDriver: "Musa M.", odometer: "30, 678 km", location: "Big Bend", lastUpdate: "2025-06-17" },
+  // ];
 
 //   const columns = [
 //     { key: "id", title: "Vehicle ID" },
@@ -138,7 +152,7 @@ const columns = [
 
       <div style={{ background: "#fff", padding: "16px", borderRadius: "8px", boxShadow: "0 2px 3px rgba(0,0,0,0.2)", marginTop: "50px",  border: "solid 1px #ccc" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-          <h3>Manage Drivers</h3>
+          <h3>Manage Vehicles</h3>
           <Link to="/vehicles/add">
             <button style={{
               padding: "12px 16px",
@@ -153,7 +167,7 @@ const columns = [
             </button>
           </Link>
         </div>
-        <Table columns={columns} data={tableData} />
+        <Table columns={columns} data={vehicles} />
       </div>
     </div>
   );

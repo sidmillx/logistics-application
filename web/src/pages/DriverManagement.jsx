@@ -51,6 +51,27 @@ const DriverManagement = () => {
     fetchData();
   }, []);
 
+ const handleDelete = async (id) => {
+  const confirmDelete = window.confirm("Are you sure you want to delete this driver?");
+  if (!confirmDelete) return;
+
+  try {
+    const res = await fetch(`http://localhost:5000/api/admin/drivers/${id}`, {
+      method: "DELETE",
+    });
+
+    if (!res.ok) throw new Error("Delete failed");
+
+    // Remove from state
+    setDrivers((prev) => prev.filter((d) => d.id !== id));
+
+  } catch (err) {
+    console.error("Failed to delete driver:", err);
+    alert("Failed to delete driver");
+  }
+};
+
+
 
   // const tableData = [
   //   { name: "Sandile Zwane", status: "In Use", entity: "Inyatsi", contact: "76547382"},
@@ -72,12 +93,10 @@ const DriverManagement = () => {
   title: "Actions",
   render: (row) => (
     <div>
-    <Link to={`/drivers/edit/${row.name}`} style={{marginRight: "15px"}}>
+    <Link to={`/drivers/edit/${row.id}`} style={{marginRight: "15px"}}>
       <button style={{border: "none", background: "transparent", cursor: "pointer"}}><span><img src={editIcon} alt="edit icon" /></span></button>
     </Link>
-    <Link to={`/drivers/${row.name}`} style={{marginRight: "15px"}}>
-      <button style={{border: "none", background: "transparent", cursor: "pointer"}}><span><img src={deleteIcon} alt="delete Icon" /></span></button>
-    </Link>
+      <button onClick={() => handleDelete(row.id)} style={{border: "none", background: "transparent", cursor: "pointer"}}><span><img src={deleteIcon} alt="delete Icon" /></span></button>
   
     </div>
     

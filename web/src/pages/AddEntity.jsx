@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+
 
 const AddEntity = () => {
   const navigate = useNavigate();
@@ -28,12 +30,14 @@ const AddEntity = () => {
       }
 
       const data = await res.json();
-      console.log("Entity added successfully:", data);
+      // console.log("Entity added successfully:", data);
+      toast.success("Entity added successfully!");
+
       navigate("/entities");
 
   }catch (error) {
       console.error("Error adding entity:", error);
-      alert("Failed to add entity. Please try again.");
+      toast.error("Failed to add entity. Please try again."); 
     }
   };
 
