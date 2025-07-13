@@ -4,19 +4,20 @@ import { Writable } from "stream";
 import { writeToString } from "fast-csv";
 import PDFDocument from "pdfkit";
 import { and, eq, isNotNull, sql, gte, lte, desc, ilike  } from "drizzle-orm";
+import { trips, fuelLogs, drivers, vehicles, usersTable, entitiesTable } from "../db/schema.js";
 
 
 export function applyFilters(query, filters) {
   const conditions = [];
 
   if (filters.driver) {
-    conditions.push(ilike(drivers.name, `%${filters.driver}%`));
+    conditions.push(ilike(usersTable.fullname, `%${filters.driver}%`));
   }
   if (filters.vehicle) {
     conditions.push(ilike(vehicles.registrationNumber, `%${filters.vehicle}%`));
   }
   if (filters.entity) {
-    conditions.push(ilike(entities.name, `%${filters.entity}%`));
+    conditions.push(ilike(entitiesTable.name, `%${filters.entity}%`));
   }
   if (filters.dateFrom) {
     conditions.push(gte(trips.checkInTime, new Date(filters.dateFrom)));

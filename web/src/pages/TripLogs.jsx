@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Card from "../components/Card";
 import Table from "../components/Table";
-import downloadIcon from "../assets/icons/download.svg";
 import API_BASE_URL from "../config/config";
 
 const TripLogs = () => {
@@ -23,8 +22,8 @@ const TripLogs = () => {
           const minutes = Math.floor((durMs % 3600000) / 60000);
           return {
             id: trip.id,
-            driverName: trip.fullname,
-            vehicleReg: trip.vehicleId,
+            driverName: trip.driverName, // Changed from fullname to driverName
+            vehiclePlate: trip.vehiclePlate, // Using plate number instead of vehicleId
             startLocation: trip.locationStart,
             endLocation: trip.locationEnd,
             distance: dist,
@@ -55,7 +54,7 @@ const TripLogs = () => {
     const filtered = trips.filter(
       trip =>
         trip.driverName.toLowerCase().includes(keyword) ||
-        trip.vehicleReg.toLowerCase().includes(keyword) ||
+        trip.vehiclePlate.toLowerCase().includes(keyword) || // Updated to vehiclePlate
         trip.startLocation.toLowerCase().includes(keyword) ||
         trip.endLocation.toLowerCase().includes(keyword)
     );
@@ -64,17 +63,17 @@ const TripLogs = () => {
 
   const columns = [
     { key: "driverName", title: "Driver Name" },
-    { key: "vehicleReg", title: "Vehicle Reg" },
+    { key: "vehiclePlate", title: "Vehicle Plate" }, // Updated column title
     { key: "startLocation", title: "Start Location" },
     { key: "endLocation", title: "End Location" },
-    { key: "distance", title: "Distance", render: (row) => `${row.distance} km` },
+    { key: "distance", title: "Distance", render: (cellData, row) => `${row.distance} km` },
     { key: "duration", title: "Duration" },
     { key: "date", title: "Date" },
-    { key: "fuelUsed", title: "Fuel Cost", render: (row) => `${row.fuelUsed} E` },
+    { key: "fuelUsed", title: "Fuel Cost", render: (cellData, row) => `E ${row.fuelUsed}` },
     {
       key: "receipt",
       title: "Receipt",
-      render: (row) => (
+      render: (cellData, row) => (
         <button
           title="Download Receipt"
           style={{ background: "transparent", border: "none" }}
@@ -83,7 +82,7 @@ const TripLogs = () => {
             else alert("Receipt not available");
           }}
         >
-          <img src={downloadIcon} alt="Download" />
+          <img src="/icons/download.svg" alt="Download" />
         </button>
       )
     },
@@ -95,11 +94,10 @@ const TripLogs = () => {
 
       <div style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>
         <Card title="Total Trips" value={stats.totalTrips} />
-        <Card title="Average Trip Distance" value={`${stats.avgDistance} KM`} />
-        <Card title="Average Fuel per Trip" value={`${stats.avgFuel} E`} />
+        <Card title="Average Trip Distance" value={`${stats.avgDistance} KM`} />
+        <Card title="Average Fuel per Trip" value={`E ${stats.avgFuel}`} />
       </div>
 
-      {/* 🔍 Search & Filter Section */}
       <div style={{ display: "flex", gap: "12px", marginBottom: "20px" }}>
         <input
           type="text"
@@ -114,7 +112,6 @@ const TripLogs = () => {
             fontSize: "14px"
           }}
         />
-        {/* 🔧 Future filters like date range or entity can go here */}
       </div>
 
       <div style={{

@@ -31,7 +31,7 @@ const Table = ({ columns, data, rowsPerPage = 5 }) => {
             <tr key={idx}>
               {columns.map(col => (
                 <td key={col.key}>
-                  {col.render ? col.render(row) : row[col.key]}
+                  {col.render ? col.render(row[col.key], row) : row[col.key]}
                 </td>
               ))}
             </tr>

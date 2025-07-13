@@ -3,9 +3,6 @@ import Card from "../components/Card";
 import CustomBarChart from "../components/BarChart";
 import Table from "../components/Table";
 import FilterButtons from "../components/FilterButtons";
-import fuelIcon from "../assets/icons/fuel.svg";
-import tuneIcon from "../assets/icons/tune.svg";
-import chartIcon from "../assets/icons/chart.svg";
 import { Link } from "react-router-dom";
 import API_BASE_URL from "../config/config";
 
@@ -36,7 +33,7 @@ const FuelUtilization = () => {
     { key: "totalLitresUsed", title: "Total Litres Used" },
     { key: "avgKmPerLitre", title: "Average Km/l" },
     { key: "fuelCost", title: "Fuel Cost" },
-    { key: "actions", title: "Actions", render: row => (
+    { key: "actions", title: "Actions", render: (cellValue, row) => (
       <Link to={`/vehicles/${row.id}/fuel`}>
         <button className="link-button" style={{ padding: "10px", background: "transparent", border: "none", color: "steelblue", cursor: "pointer" }}>View Fuel Logs</button>
       </Link>
@@ -47,10 +44,10 @@ const FuelUtilization = () => {
     <div>
       <h1>Fuel Utilization</h1>
       <div className="cards" style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>
-        <Card title="Total Litres Consumed" value={`${summary.totalLitres} L`} icon={<img src={fuelIcon} />} />
-        <Card title="AVG Litres / Trip" value={`${summary.avgLitresPerTrip} L`} icon={<img src={tuneIcon} />} />
-        <Card title="Total Fuel Cost" value={`E${summary.totalCost}`} icon={<img src={chartIcon} />} />
-        <Card title="AVG Cost / Km" value={`E${summary.avgCostPerKm}`} icon={<img src={chartIcon} />} />
+        <Card title="Total Litres Consumed" value={`${summary.totalLitres} L`} icon={<img src="/icons/fuel.svg" />} />
+        <Card title="AVG Litres / Trip" value={`${summary.avgLitresPerTrip} L`} icon={<img src="/icons/fuel.svg" />} />
+        <Card title="Total Fuel Cost" value={`E${summary.totalCost}`} icon={<img src="/icons/chart.svg"/>} />
+        <Card title="AVG Cost / Km" value={`E${summary.avgCostPerKm}`} icon={<img src="/icons/chart.svg" />} />
       </div>
 
        <div

@@ -12,7 +12,7 @@ import {
   drivers,
   vehicles
 } from "../db/schema.js";
-import { and, eq, isNotNull, sql, gte, lte, desc  } from "drizzle-orm";
+import { and, eq, isNotNull, sql, gte, lte, desc, isNull  } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
 
@@ -21,43 +21,69 @@ const router = express.Router();
 // router.use(authenticate, authorize("admin")); REAPPLY THIS LATER, !!!! VERY IMPORTANT !!!
 
 // DRIVERS
-router.post("/drivers/add", async (req, res) => {
-    const { fullName, username, password, contact, entityId } = req.body;
-
-    try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        const existing = await db
-        .select()
-        .from(usersTable)
-        .where(eq(usersTable.username, username));
-
-        if (existing.length > 0) {
-        return res.status(400).json({ error: "Username already taken" });
-        }
+// src/routes/admin.route.js (or equivalent)
 
 
-        const [user] = await db.insert(usersTable).values({
-            username,
-            password: hashedPassword,
-            fullname: fullName,
-            role: "driver"
-        }).returning();
+router.post('/drivers/add', async (req, res) => {
+  const { fullname, username, password, contact, entityId } = req.body; // Match frontend payload
 
-        await db.insert(drivers).values({
-            id: user.id,
-            entityId,
-            contact
-        });
-
-        res.status(201).json({ message: "Driver added successfully", user });
-    
-    } catch (err) {
-        console.error("Error adding driver:", err);
-        res.status(500).json({ error: "Failed to add driver" });
+  try {
+    // Validate required fields
+    if (!fullname || !fullname.trim()) {
+      return res.status(400).json({ error: 'Full Name is required' });
     }
-})
+    if (!username || !username.trim()) {
+      return res.status(400).json({ error: 'Username is required' });
+    }
+    if (!password || !password.trim()) {
+      return res.status(400).json({ error: 'Password is required' });
+    }
+    if (!contact || !contact.trim()) {
+      return res.status(400).json({ error: 'Contact is required' });
+    }
+    if (!entityId) {
+      return res.status(400).json({ error: 'Entity ID is required' });
+    }
 
+    // Check for existing username
+    const existing = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.username, username));
+
+    if (existing.length > 0) {
+      return res.status(400).json({ error: 'Username already taken' });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Insert into users table
+    const [user] = await db
+      .insert(usersTable)
+      .values({
+        username: username.trim(),
+        password: hashedPassword,
+        fullname: fullname.trim(), // Ensure non-null and trimmed
+        role: "driver",
+        created_at: new Date(),
+        updated_at: new Date(),
+      })
+      .returning();
+
+    // Insert into drivers table
+    await db.insert(drivers).values({
+      id: user.id, // Assuming id is the foreign key linking users and drivers
+      entityId,
+      contact: contact.trim(),
+    });
+
+    res.status(201).json({ message: "Driver added successfully", user });
+  } catch (err) {
+    console.error("Error adding driver:", err);
+    res.status(500).json({ error: "Failed to add driver" });
+  }
+});
 // ==== USERS ====
 router.get("/users", async (req, res) => {
   try {
@@ -94,9 +120,9 @@ router.get("/entities/overview", async (req, res) => {
       );
 
       const total = relatedVehicles.length;
-      const inUse = relatedVehicles.filter((v) => v.status === "In Use").length;
-      const available = relatedVehicles.filter((v) => v.status === "Available").length;
-      const maintenance = relatedVehicles.filter((v) => v.status === "Under Maintenance").length;
+      const inUse = relatedVehicles.filter((v) => v.status === "in-use").length;
+      const available = relatedVehicles.filter((v) => v.status === "available").length;
+      const maintenance = relatedVehicles.filter((v) => v.status === "maintenance").length;
 
       return {
         id: entity.id,
@@ -143,9 +169,9 @@ router.get("/entities/:id/overview", async (req, res) => {
     });
 
     const totalVehicles = vehicles.length;
-    const inUse = vehicles.filter(v => v.status === "In Use").length;
-    const available = vehicles.filter(v => v.status === "Available").length;
-    const maintenance = vehicles.filter(v => v.status === "Under Maintenance").length;
+    const inUse = vehicles.filter(v => v.status === "in-use").length;
+    const available = vehicles.filter(v => v.status === "available").length;
+    const maintenance = vehicles.filter(v => v.status === "maintenance").length;
 
     return res.json({
     name: entity.name,
@@ -187,7 +213,7 @@ router.get("/summary", async (req, res) => {
 
     const totalVehicles = allVehicles.length;
     const totalEntities = allEntities.length;
-    const available = allVehicles.filter(v => v.status === "Available").length;
+    const available = allVehicles.filter(v => v.status === "available").length;
 
     res.json({
         totalVehicles,
@@ -307,13 +333,28 @@ router.get("/fuel-logs", async (req, res) => {
 });
 
 
+
 // GET /api/admin/drivers
 router.get("/drivers", async (req, res) => {
   try {
+    // First get all active driver IDs (those currently on trips)
+    const activeDriverResults = await db
+      .select({ 
+        driverId: trips.driverId 
+      })
+      .from(trips)
+      .where(
+        and(
+          isNotNull(trips.checkInTime),
+          isNull(trips.checkOutTime)
+        )
+      )
+      .groupBy(trips.driverId);
 
+    const activeDriverIds = activeDriverResults.map(d => d.driverId);
 
-
-    const results = await db
+    // Then get all drivers with their details
+    const allDrivers = await db
       .select({
         id: drivers.id,
         name: usersTable.fullname,
@@ -324,6 +365,12 @@ router.get("/drivers", async (req, res) => {
       .leftJoin(usersTable, eq(drivers.id, usersTable.id))
       .leftJoin(entities, eq(drivers.entityId, entities.id));
 
+    // Augment each driver with active status
+    const results = allDrivers.map(driver => ({
+      ...driver,
+      isActive: activeDriverIds.includes(driver.id)
+    }));
+
     res.json(results);
   } catch (err) {
     console.error("Failed to fetch drivers:", err);
@@ -331,44 +378,56 @@ router.get("/drivers", async (req, res) => {
   }
 });
 
-
 // Assume you have a `drivers` and `trips` table in your schema
 router.get("/drivers/summary", async (req, res) => {
   try {
-    // Fetch all drivers
-    const allDrivers = await db.select().from(drivers);
+    // Get active drivers (currently on trips)
+    const activeDrivers = await db
+      .select({ 
+        driverId: trips.driverId 
+      })
+      .from(trips)
+      .where(
+        and(
+          isNotNull(trips.checkInTime),
+          isNull(trips.checkOutTime)
+        )
+      )
+      .groupBy(trips.driverId);
 
-    const totalDrivers = allDrivers.length;
-    // const activeDrivers = allDrivers.filter(driver => driver.status === "In Use").length;
-    const activeDrivers = 7; // Placeholder, replace with actual logic
+    // Get total driver count
+    const totalDrivers = await db
+      .select({ count: sql`count(*)` })
+      .from(drivers);
 
-    // TRIPS
-    // const allTrips = await db.select().from(trips);
-
-    // const tripCountsByDriver = {};
-    // allTrips.forEach((trip) => {
-    //   if (!tripCountsByDriver[trip.driverId]) {
-    //     tripCountsByDriver[trip.driverId] = 0;
-    //   }
-    //   tripCountsByDriver[trip.driverId]++;
-    // });
-
-    // const avgTripsPerDriver = totalDrivers > 0
-    //   ? (allTrips.length / totalDrivers).toFixed(2)
-    //   : 0;
+    // Get trip statistics - FIXED VERSION
+    const tripStats = await db
+      .select({
+        totalTrips: sql`count(*)`,
+        avgTrips: sql`ROUND(avg(count)::numeric, 1)`
+      })
+      .from(
+        db
+          .select({
+            driverId: trips.driverId,
+            count: sql`count(*)`.mapWith(Number)
+          })
+          .from(trips)
+          .groupBy(trips.driverId)
+          .as("driver_trips")
+      );
 
     res.json({
-      totalDrivers,
-      activeDrivers,
-      // avgTripsPerDriver: Number(avgTripsPerDriver),
-      avgTripsPerDriver: 5
+      totalDrivers: Number(totalDrivers[0].count),
+      activeDrivers: activeDrivers.length,
+      avgTripsPerDriver: tripStats[0].avgTrips || 0,
+      totalTrips: tripStats[0].totalTrips || 0
     });
   } catch (err) {
     console.error("Failed to load driver summary:", err);
     res.status(500).json({ error: "Failed to fetch driver summary" });
   }
 });
-
 // GET /api/admin/vehicles
 router.get("/vehicles", async (req, res) => {
   try {
@@ -437,42 +496,75 @@ router.put("/vehicles/:id", async (req, res) => {
   }
 });
 
-router.put("/drivers/:id", async (req, res) => {
+// src/routes/admin.route.js (or equivalent)
+
+// src/routes/admin.route.
+
+router.put('/drivers/:id', async (req, res) => {
   const driverId = req.params.id;
-  const { name, contact, entity, status } = req.body;
+  const { fullname, contact, entityId, status } = req.body; // Updated to match frontend 'fullname'
 
   try {
-    // Fetch the entity ID by name (assuming frontend sends entity name)
+    // Validate required fields
+    if (!fullname || !fullname.trim()) {
+      throw new Error('Full Name is required');
+    }
+    if (!contact || !contact.trim()) {
+      throw new Error('Contact is required');
+    }
+    if (!entityId) {
+      throw new Error('Entity ID is required');
+    }
+    if (!status) {
+      throw new Error('Status is required');
+    }
+
+    // Validate entityId exists
     const entityResult = await db
       .select({ id: entities.id })
       .from(entities)
-      .where(eq(entities.name, entity))
+      .where(eq(entities.id, entityId))
       .limit(1);
 
     if (entityResult.length === 0) {
-      return res.status(400).json({ message: "Entity not found" });
+      throw new Error('Entity not found');
     }
 
-    const entityId = entityResult[0].id;
-
-    // Update the driver
-    const result = await db
+    // Update usersTable (fullname and status)
+    const [updatedUser] = await db
       .update(usersTable)
       .set({
-        fullname: name,
-        phone: contact,
-        status,
+        fullname: fullname.trim(),
+        status: status, // Only if status is added to schema
+        updatedAt: new Date(),
+      })
+      .where(eq(usersTable.id, driverId))
+      .returning();
+
+    if (!updatedUser) {
+      throw new Error('User not found or update failed');
+    }
+
+    // Update drivers table (contact and entityId)
+    const [updatedDriver] = await db
+      .update(drivers)
+      .set({
+        contact: contact.trim(),
         entityId,
       })
-      .where(eq(usersTable.id, driverId));
+      .where(eq(drivers.id, driverId))
+      .returning();
 
-    res.json({ message: "Driver updated successfully" });
+    if (!updatedDriver) {
+      throw new Error('Driver update failed');
+    }
+
+    res.json({ message: "Driver updated successfully", data: { user: updatedUser, driver: updatedDriver } });
   } catch (err) {
     console.error("Update driver error:", err);
-    res.status(500).json({ message: "Failed to update driver" });
+    res.status(400).json({ message: err.message || "Failed to update driver" });
   }
 });
-
 
 // GET /api/admin/vehicles/:id
 router.get("/vehicles/:id", async (req, res) => {
@@ -523,6 +615,31 @@ router.delete("/entities/:id", async (req, res) => {
 });
 
 
+router.get("/vehicles/:id/fuel-logs", async (req, res) => {
+  try {
+    const vehicleId = req.params.id;
+
+    const logs = await db
+      .select({
+        id: fuelLogs.id,
+        date: fuelLogs.timestamp,
+        fuelType: fuelLogs.location, // Replace with actual fuel type if different
+        liters: fuelLogs.litres,
+        cost: fuelLogs.cost,
+        odometer: fuelLogs.odometer,
+        loggedBy: usersTable.fullname,
+      })
+      .from(fuelLogs)
+      .leftJoin(usersTable, eq(fuelLogs.loggedBy, usersTable.id))
+      .where(eq(fuelLogs.vehicleId, vehicleId))
+      .orderBy(fuelLogs.timestamp, "desc");
+
+    res.json(logs); // ✅ Send array directly
+  } catch (error) {
+    console.error("Error fetching fuel logs:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 
 router.get("/trips/logs", async (req, res) => {
@@ -538,12 +655,16 @@ router.get("/trips/logs", async (req, res) => {
         locationEnd: trips.locationEnd,
         checkInTime: trips.checkInTime,
         checkOutTime: trips.checkOutTime,
-        fullname: usersTable.fullname,
+        driverName: usersTable.fullname,
+        vehiclePlate: vehicles.plateNumber,
+        vehicleMake: vehicles.make,
+        vehicleModel: vehicles.model,
         fuelCost: fuelLogs.cost,
         receiptUrl: fuelLogs.receiptUrl,
       })
       .from(trips)
       .innerJoin(usersTable, eq(usersTable.id, trips.driverId))
+      .innerJoin(vehicles, eq(vehicles.id, trips.vehicleId))
       .leftJoin(fuelLogs, eq(fuelLogs.tripId, trips.id))
       .where(
         and(
@@ -565,7 +686,7 @@ router.get("/drivers/utilization/summary", async (req, res) => {
     const thisMonth = new Date();
     thisMonth.setDate(1); // first day of current month
 
-    const totalDrivers = await db.select({ count: sql`count(distinct(${trips.driverId}))` }).from(trips);
+    const totalDrivers = await db.select({ count: sql`count(distinct(${drivers.id}))` }).from(drivers);
 
     const totalTripsThisMonth = await db.select({ count: sql`count(*)` })
       .from(trips)
@@ -658,14 +779,15 @@ router.get("/drivers/:id", async (req, res) => {
     })();
 
     res.json({
-      id: user.id,
-      name: user.fullname,
-      company: "Inyatsi", // Optional: Lookup from entity table
-      phone: driver.contact,
-      totalTrips,
-      hoursLogged: hoursLogged.toFixed(1),
-      avgDistance: `${avgDistance} KM`
-    });
+    id: user?.id || driverId,
+    name: user?.fullname || "Unknown",
+    company: "Inyatsi",
+    phone: driver?.contact || "N/A",
+    totalTrips,
+    hoursLogged: hoursLogged.toFixed(1),
+    avgDistance: Number(avgDistance),
+  });
+
   } catch (err) {
     console.error("Error fetching driver profile:", err);
     res.status(500).json({ error: "Failed to get driver profile" });
@@ -762,9 +884,9 @@ router.get("/fuel-utilization/table", async (req, res) => {
         id: r.id,
         vehicleReg: r.vehicleReg,
         entityName: r.entityName,
-        totalLitresUsed: `${litres} L`,
+        totalLitresUsed: `${litres} Litres`,
         avgKmPerLitre: litres > 0 ? `${(distance / litres).toFixed(1)} km` : "0 km",
-        fuelCost: `E${cost.toFixed(2)}`
+        fuelCost: `E ${cost.toFixed(2)}`
       };
     });
 
@@ -813,10 +935,10 @@ router.get("/fuel-utilization/chart", async (req, res) => {
 
 
 
-// GET /api/admin/dashboard/summary
 router.get("/dashboard/summary", async (req, res) => {
   try {
-    const [totalTrips, topDriver, topVehicle, litresPer100Km, costPerKm] = await Promise.all([
+    // Basic stats and aggregations
+    const [totalTrips, topDriver, topVehicle, tripDistances, fuelData] = await Promise.all([
       db.select({ count: sql`COUNT(*)` }).from(trips),
       db
         .select({ name: usersTable.fullname, trips: sql`COUNT(*)` })
@@ -826,24 +948,42 @@ router.get("/dashboard/summary", async (req, res) => {
         .orderBy(sql`COUNT(*) DESC`)
         .limit(1),
       db
-      .select({ plate: vehicles.plateNumber, km: sql`SUM("trips"."odometer_end" - "trips"."odometer_start")` })
-      .from(trips)
-      .leftJoin(vehicles, eq(trips.vehicleId, vehicles.id))
-      .groupBy(vehicles.plateNumber)
-      .orderBy(sql`SUM("trips"."odometer_end" - "trips"."odometer_start") DESC`)
-      .limit(1),
+        .select({ plate: vehicles.plateNumber, km: sql`SUM("trips"."odometer_end" - "trips"."odometer_start")` })
+        .from(trips)
+        .leftJoin(vehicles, eq(trips.vehicleId, vehicles.id))
+        .groupBy(vehicles.plateNumber)
+        .orderBy(sql`SUM("trips"."odometer_end" - "trips"."odometer_start") DESC`)
+        .limit(1),
 
-      // Calculate fuel efficiency and cost (mocked here, adjust logic)
-      Promise.resolve(84),
-      Promise.resolve(49.50),
+      // Sum total km traveled for all trips
+      db.select({
+        totalKm: sql`SUM("odometer_end" - "odometer_start")`
+      }).from(trips),
+
+      // Sum total litres and total cost from fuel logs
+      db.select({
+        totalLitres: sql`SUM(litres)`,
+        totalCost: sql`SUM(cost)`
+      }).from(fuelLogs),
     ]);
+
+    // Extract total km, litres and cost safely
+    const totalKm = Number(tripDistances[0]?.totalKm || 0);
+    const totalLitres = Number(fuelData[0]?.totalLitres || 0);
+    const totalCost = Number(fuelData[0]?.totalCost || 0);
+
+    // Calculate fuel efficiency (litres per 100 km)
+    const litresPer100Km = totalKm > 0 ? (totalLitres / totalKm) * 100 : 0;
+
+    // Calculate cost per km
+    const costPerKm = totalKm > 0 ? (totalCost / totalKm) : 0;
 
     res.json({
       totalTrips: Number(totalTrips[0].count),
       topDriver: topDriver[0]?.name + ` (${topDriver[0]?.trips} trips)`,
       topVehicle: topVehicle[0]?.plate + ` (${topVehicle[0]?.km} km)`,
-      litresPer100Km: litresPer100Km,
-      costPerKm: costPerKm,
+      litresPer100Km: litresPer100Km.toFixed(2),
+      costPerKm: costPerKm.toFixed(2),
     });
   } catch (err) {
     console.error("Dashboard summary error:", err);
@@ -909,27 +1049,47 @@ router.get("/users", async (req, res) => {
 
 router.put("/users/:id", async (req, res) => {
   const { id } = req.params;
-  const { role } = req.body;
+  const { role, password } = req.body;
 
-  if (!["admin", "supervisor", "driver"].includes(role)) {
+  // Validate role if provided
+  if (role && !["admin", "supervisor", "driver"].includes(role)) {
     return res.status(400).json({ message: "Invalid role" });
   }
 
   try {
+    // Prepare the update object
+    const updateData = {};
+
+    if (role) {
+      updateData.role = role;
+    }
+
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      updateData.password = hashedPassword;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ message: "Nothing to update" });
+    }
+
     const updated = await db
       .update(usersTable)
-      .set({ role })
+      .set(updateData)
       .where(eq(usersTable.id, id))
       .returning();
 
-    if (!updated.length) return res.status(404).json({ message: "User not found" });
+    if (!updated.length) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
-    res.json({ message: "Role updated", user: updated[0] });
+    res.json({ message: "User updated", user: updated[0] });
   } catch (err) {
-    console.error("Update user role error:", err);
-    res.status(500).json({ message: "Failed to update user role" });
+    console.error("Update user error:", err);
+    res.status(500).json({ message: "Failed to update user" });
   }
 });
+
 
 
 router.delete("/users/:id", async (req, res) => {
@@ -949,6 +1109,39 @@ router.delete("/users/:id", async (req, res) => {
     res.status(500).json({ message: "Failed to delete user" });
   }
 });
+
+router.get("/me", authenticate, async (req, res) => {
+  try {
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.user.id));
+    res.json({ id: user.id, fullname: user.fullname, username: user.username });
+  } catch (err) {
+    console.error("Fetch user error:", err);
+    res.status(500).json({ message: "Failed to fetch user" });
+  }
+});
+
+router.put("/settings", authenticate, async (req, res) => {
+  const { fullname, username, password } = req.body;
+
+  try {
+    const updated = await db
+      .update(usersTable)
+      .set({
+        fullname,
+        username,
+        ...(password ? { password: await bcrypt.hash(password, 10) } : {}),
+      })
+      .where(eq(usersTable.id, req.user.id))
+      .returning();
+
+    res.json({ message: "Profile updated", user: updated[0] });
+  } catch (err) {
+    console.error("Update failed:", err);
+    res.status(500).json({ message: "Failed to update profile" });
+  }
+});
+
+
 
 
 

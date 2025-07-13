@@ -7,6 +7,7 @@ const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [editingRoles, setEditingRoles] = useState({});
+  const [editingPasswords, setEditingPasswords] = useState({});
   const [showAddModal, setShowAddModal] = useState(false);
   const [newUser, setNewUser] = useState({
     fullname: "",
@@ -30,6 +31,7 @@ const UserManagement = () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/admin/users`);
       const data = await res.json();
+      console.log("Fetched users:", data); // Debug log
       setUsers(data);
     } catch (err) {
       toast.error("Failed to load users");
@@ -54,34 +56,51 @@ const UserManagement = () => {
     }
 
     setFilteredUsers(filtered);
+    console.log("Filtered users:", filtered); // Debug log
   };
 
   const handleRoleChange = (id, newRole) => {
     setEditingRoles((prev) => ({ ...prev, [id]: newRole }));
   };
 
-  const handleSaveRole = async (id) => {
+  const handlePasswordChange = (id, newPassword) => {
+    setEditingPasswords((prev) => ({ ...prev, [id]: newPassword }));
+  };
+
+  const handleSaveRoleAndPassword = async (id) => {
     const newRole = editingRoles[id];
-    if (!newRole) return;
+    const newPassword = editingPasswords[id];
+
+    if (!newRole && (!newPassword || newPassword.trim() === "")) return; // nothing to update
 
     try {
+      const bodyData = {};
+      if (newRole) bodyData.role = newRole;
+      if (newPassword) bodyData.password = newPassword;
+
       const res = await fetch(`${API_BASE_URL}/api/admin/users/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: newRole }),
+        body: JSON.stringify(bodyData),
       });
 
-      if (!res.ok) throw new Error("Failed to update role");
+      if (!res.ok) throw new Error("Failed to update user");
 
-      toast.success("Role updated");
+      toast.success("User updated");
       setEditingRoles((prev) => {
         const updated = { ...prev };
         delete updated[id];
         return updated;
       });
+      setEditingPasswords((prev) => {
+        const updated = { ...prev };
+        delete updated[id];
+        return updated;
+      });
+
       fetchUsers();
     } catch (err) {
-      toast.error("Error updating role");
+      toast.error("Error updating user");
       console.error(err);
     }
   };
@@ -90,7 +109,7 @@ const UserManagement = () => {
     if (!window.confirm("Are you sure you want to remove this user?")) return;
 
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/users/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/users/${id}`, {
         method: "DELETE",
       });
 
@@ -130,55 +149,79 @@ const UserManagement = () => {
     { key: "fullname", title: "Name" },
     { key: "username", title: "Username" },
     {
-      key: "role",
-      title: "Role",
-      render: (row) => (
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <select
-            value={editingRoles[row.id] || row.role}
-            onChange={(e) => handleRoleChange(row.id, e.target.value)}
-            style={{ padding: "4px" }}
+      key: "role_password",
+      title: "Role & Password",
+      render: (cellValue, row) => {
+        if (!row || !row.id) return null;
+
+        return (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: "wrap",
+            }}
           >
-            <option value="admin">Admin</option>
-            <option value="supervisor">Supervisor</option>
-            <option value="driver">Driver</option>
-          </select>
-          {editingRoles[row.id] && (
-            <button
-              onClick={() => handleSaveRole(row.id)}
-              style={{
-                padding: "4px 8px",
-                background: "#1976d2",
-                color: "#fff",
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer",
-              }}
+            <select
+              value={editingRoles[row.id] ?? row.role}
+              onChange={(e) => handleRoleChange(row.id, e.target.value)}
+              style={{ padding: "4px" }}
             >
-              Save
-            </button>
-          )}
-        </div>
-      ),
+              <option value="admin">Admin</option>
+              <option value="supervisor">Supervisor</option>
+              <option value="driver">Driver</option>
+            </select>
+
+            <input
+              type="password"
+              placeholder="New password"
+              value={editingPasswords[row.id] ?? ""}
+              onChange={(e) => handlePasswordChange(row.id, e.target.value)}
+              style={{ padding: "4px", width: 150 }}
+            />
+
+            {(editingRoles[row.id] || (editingPasswords[row.id] && editingPasswords[row.id].trim() !== "")) && (
+              <button
+                onClick={() => handleSaveRoleAndPassword(row.id)}
+                style={{
+                  padding: "4px 8px",
+                  background: "#1976d2",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                }}
+              >
+                Save
+              </button>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: "actions",
       title: "Actions",
-      render: (row) => (
-        <button
-          onClick={() => handleDelete(row.id)}
-          style={{
-            padding: "6px 12px",
-            background: "#e53935",
-            color: "#fff",
-            border: "none",
-            borderRadius: "4px",
-            cursor: "pointer",
-          }}
-        >
-          Remove
-        </button>
-      ),
+      render: (cellValue, row) => {
+        if (!row || !row.id) return null;
+
+        return (
+          <button
+            onClick={() => handleDelete(row.id)}
+            style={{
+              padding: "6px 12px",
+              background: "#e53935",
+              color: "#fff",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+          >
+            Remove
+          </button>
+        );
+      },
     },
   ];
 
@@ -243,7 +286,10 @@ const UserManagement = () => {
         <div
           style={{
             position: "fixed",
-            top: 0, left: 0, right: 0, bottom: 0,
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
             background: "rgba(0,0,0,0.4)",
             display: "flex",
             alignItems: "center",

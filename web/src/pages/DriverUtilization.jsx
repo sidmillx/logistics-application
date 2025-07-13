@@ -4,9 +4,6 @@ import CustomBarChart from "../components/BarChart";
 import Table from "../components/Table";
 import FilterButtons from "../components/FilterButtons";
 import { Link } from "react-router-dom";
-import accountCircleIcon from "../assets/icons/account_circle.svg";
-import locationIcon from "../assets/icons/location.svg";
-import chartIcon from "../assets/icons/chart.svg";
 import API_BASE_URL from "../config/config";
 
 const DriverUtilization = () => {
@@ -17,9 +14,19 @@ const DriverUtilization = () => {
 
   useEffect(() => {
     const fetchSummary = async () => {
-      const res = await fetch(`${API_BASE_URL}/api/admin/drivers/utilization/summary`);
+      const url = `${API_BASE_URL}/api/admin/drivers/utilization/summary?_=${Date.now()}`
+      console.log("Fetching driver utilization summary from:", url);
+      const res = await fetch(url);
+     
       const data = await res.json();
-      setSummary(data);
+
+      console.log("Raw API response:", data);
+
+      setSummary({
+        totalActiveDrivers: parseInt(data.totalActiveDrivers, 10) || 0,
+        totalTrips: parseInt(data.totalTrips, 10) || 0,
+        avgTripsPerDriver: parseFloat(data.avgTripsPerDriver) || 0
+      });
     };
     fetchSummary();
 
@@ -47,7 +54,7 @@ const DriverUtilization = () => {
     {
       key: "actions",
       title: "Actions",
-      render: (row) => (
+      render: (cellData, row) => (
         <Link to={`/drivers/${row.id}`}>
           <button style={{ padding: "10px", background: "transparent", border: "none", color: "steelblue", cursor: "pointer" }}>
             View Details
@@ -61,9 +68,9 @@ const DriverUtilization = () => {
     <div>
       <h1>Driver Utilization</h1>
       <div style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>
-        <Card title="Total Active Drivers" value={summary.totalActiveDrivers} icon={<img src={accountCircleIcon} alt="" />} />
-        <Card title="Total Trips" value={summary.totalTrips} icon={<img src={locationIcon} alt="" />} />
-        <Card title="AVG Trips per driver" value={summary.avgTripsPerDriver} icon={<img src={chartIcon} alt="" />} />
+        <Card title="Total Drivers" value={summary.totalActiveDrivers.toString()} icon={<img src="/icons/account_circle.svg" alt="" />} />
+        <Card title="Total Trips" value={summary.totalTrips.toString()} icon={<img src="/icons/location.svg" alt="" />} />
+        <Card title="AVG Trips per driver" value={summary.avgTripsPerDriver} icon={<img src="/icons/chart.svg" alt="" />} />
       </div>
 
       <div style={{ background: "#fff", padding: "16px", borderRadius: "8px", marginBottom: "20px", border: "1px solid #ccc" }}>

@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import accountCircleIcon from '../assets/icons/account_circle.svg';
-import arrowDropdownIcon from '../assets/icons/arrow_drop_down.svg';
 import './Header.module.css';
+import { useNavigate } from "react-router-dom";
+
 
 const Header = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const navigate = useNavigate();
+
 
   const toggleDropdown = () => {
     setDropdownOpen((prev) => !prev);
@@ -53,8 +55,8 @@ const Header = () => {
         <div className="header__info">
           <div className="header__role" style={{ marginRight: "10px" }}>Admin</div>
         </div>
-        <img src={accountCircleIcon} alt="Profile icon" style={{ width: "30px" }} />
-        <img src={arrowDropdownIcon} alt="Dropdown icon" style={{ width: "30px", marginRight: "10px" }} />
+        <img src="/icons/account_circle.svg" alt="Profile icon" style={{ width: "30px" }} />
+        <img src="/icons/arrow_drop_down.svg" alt="Dropdown icon" style={{ width: "30px", marginRight: "10px" }} />
 
         {dropdownOpen && (
           <div
@@ -78,7 +80,8 @@ const Header = () => {
                 cursor: "pointer",
                 fontSize: "14px"
               }}
-              onClick={() => alert("Go to settings")}
+              onClick={() => navigate("/settings")}
+
             >
               Settings
             </div>

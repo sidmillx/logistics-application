@@ -24,6 +24,7 @@ import ViewFuelLogs from './pages/ViewFuelLogs';
 import UserManagement from './pages/UserManagement';
 import Login from './pages/Login';
 import PrivateRoute from './utils/PrivateRoutes';
+import AdminSettings from './pages/AdminSettings';
 
 const Layout = ({ children }) => {
   const location = useLocation();
@@ -99,6 +100,9 @@ function App() {
           } />
           <Route path="/user-management" element={
             <PrivateRoute><UserManagement /></PrivateRoute>
+          } />
+          <Route path="/settings" element={
+            <PrivateRoute><AdminSettings /></PrivateRoute>
           } />
           
           {/* Redirect all other paths to dashboard */}

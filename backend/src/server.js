@@ -11,7 +11,13 @@ import mobileRoutes from "./routes/mobile.route.js";
 const app = express();
 
 app.use(express.json());
-app.use(cors());
+
+app.use(cors({
+  origin: 'http://localhost:5173', // exact origin, NOT '*'
+  credentials: true,               // allow sending cookies
+}));
+
+// app.use(cors({}))
 const PORT = ENV.PORT || 5000;
 
 app.get('/api/health', (req, res) => {

@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from "react";
 import Card from "../components/Card";
 import Table from "../components/Table";
-import fuelIcon from "../assets/icons/fuel.svg";
-import chartIcon from "../assets/icons/chart.svg";
 import { useParams, Link } from "react-router-dom";
 import API_BASE_URL  from "../config/config";
 
@@ -53,9 +51,9 @@ const ViewFuelLogs = () => {
       <h1>Fuel Logs</h1>
 
       <div className="cards" style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>
-        <Card title="Total Litres Used" value={`${summary.totalLitres.toFixed(2)} L`} icon={<img src={fuelIcon} />} />
-        <Card title="Total Cost" value={`E${summary.totalCost.toFixed(2)}`} icon={<img src={chartIcon} />} />
-        <Card title="Vehicle" value={vehicle?.plateNumber || "..."} icon={<img src={chartIcon} />} />
+        <Card title="Total Litres Used" value={`${summary.totalLitres.toFixed(2)} L`} icon={<img src="/icons/fuel.svg" alt="${1:/capitalize}" />} />
+        <Card title="Total Cost" value={`E${summary.totalCost.toFixed(2)}`} icon={<img src="/icons/chart.svg" alt="${1:/capitalize}" />} />
+        <Card title="Vehicle" value={vehicle?.plateNumber || "..."} icon={<img src="/icons/chart.svg" alt="${1:/capitalize}" />} />
       </div>
 
       <div className="table-container">

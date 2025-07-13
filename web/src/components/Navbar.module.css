@@ -57,7 +57,7 @@ a:hover {
 }
 
 /* Make all images white */
-img {
+.nav img {
   filter: brightness(0) invert(1);
   width: 20px;
   height: 20px;
