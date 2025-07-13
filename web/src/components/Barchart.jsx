@@ -14,3 +14,4 @@ const CustomBarChart = ({ data, dataKey, xKey }) => (
 );
 
 export default CustomBarChart;
+
