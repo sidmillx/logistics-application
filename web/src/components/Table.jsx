@@ -1,21 +1,13 @@
-// src/components/Table.jsx
 import React, { useState } from "react";
-import "./Table.css";
+import styles from "./Table.module.css"; // Updated import
 
 const Table = ({ columns, data, rowsPerPage = 5 }) => {
   const [currentPage, setCurrentPage] = useState(1);
-
-  // Calculate total pages
- const totalPages = Math.ceil((data?.length || 0) / rowsPerPage);
-
-
-
-  // Slice data for current page
+  const totalPages = Math.ceil((data?.length || 0) / rowsPerPage);
   const startIdx = (currentPage - 1) * rowsPerPage;
   const endIdx = startIdx + rowsPerPage;
   const currentRows = data?.slice(startIdx, endIdx) || [];
 
-  // Handlers
   const goToPrev = () => {
     if (currentPage > 1) setCurrentPage(prev => prev - 1);
   };
@@ -26,7 +18,7 @@ const Table = ({ columns, data, rowsPerPage = 5 }) => {
 
   return (
     <div>
-      <table className="custom-table">
+      <table className={styles["custom-table"]}>
         <thead>
           <tr>
             {columns.map(col => (
@@ -48,14 +40,22 @@ const Table = ({ columns, data, rowsPerPage = 5 }) => {
       </table>
 
       {/* Pagination Controls */}
-      <div style={{ marginTop: "12px", display: "flex", alignItems: "center", gap: "8px", justifyContent: "flex-end" }}>
-        <button onClick={goToPrev} disabled={currentPage === 1}>
+      <div className={styles.pagination}>
+        <button 
+          onClick={goToPrev} 
+          disabled={currentPage === 1}
+          className={styles.button}
+        >
           Previous
         </button>
-        <span>
+        <span className={styles.pageInfo}>
           Page {currentPage} of {totalPages}
         </span>
-        <button onClick={goToNext} disabled={currentPage === totalPages}>
+        <button 
+          onClick={goToNext} 
+          disabled={currentPage === totalPages}
+          className={styles.button}
+        >
           Next
         </button>
       </div>
