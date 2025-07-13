@@ -7,7 +7,7 @@ import personIcon from "../assets/icons/person_pin_circle.svg";
 import groupIcon from "../assets/icons/groups.svg";
 import barchartIcon from "../assets/icons/barchart.svg";
 import { useState, useEffect } from "react";
-import {API_BASE_URL} from "../config/config";
+import API_BASE_URL from "../config/config";
 
 
 const DriverManagement = () => {
