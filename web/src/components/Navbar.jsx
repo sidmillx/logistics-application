@@ -8,7 +8,7 @@ import locationIcon from "../assets/icons/location.svg";
 import barchartIcon from "../assets/icons/barchart.svg";
 import mapIcon from "../assets/icons/map.svg";
 import driverAssignmentIcon from "../assets/icons/assignment_driver.svg";
-import styles from "/Navbar.module.css"; // Correct CSS Module import
+import styles from "./Navbar.module.css"; // Correct CSS Module import
 
 const Navbar = () => {
   return (
