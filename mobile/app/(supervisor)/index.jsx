@@ -2,6 +2,7 @@ import { View, StyleSheet } from 'react-native';
 import { Button, Card, Text } from 'react-native-paper';
 import { router } from 'expo-router';
 
+
 export default function SupervisorDashboard() {
   return (
     <View style={styles.container}>

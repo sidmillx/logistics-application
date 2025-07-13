@@ -4,6 +4,7 @@ import { Button, TextInput, Text, useTheme } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getItemAsync } from 'expo-secure-store'; // Only for native
 import { jwtDecode } from 'jwt-decode';
+import API_BASE_URL from '../../config/api';
 
 const CheckOutScreen = () => {
   const theme = useTheme();
@@ -42,49 +43,112 @@ const CheckOutScreen = () => {
     loadDriverId();
   }, []);
 
-  const handleCheckOut = async () => {
-    if (!endOdometer || !endLocation) {
-      Alert.alert("Missing Fields", "Please fill all fields before checking out.");
+  // const handleCheckOut = async () => {
+  //   if (!endOdometer || !endLocation) {
+  //     Alert.alert("Missing Fields", "Please fill all fields before checking out.");
+  //     return;
+  //   }
+
+  //   try {
+  //     const token = await getToken();
+  //     if (!token) {
+  //       Alert.alert("Auth Error", "No token found.");
+  //       return;
+  //     }
+
+  //     // const response = await fetch(`${API_BASE_URL}/api/mobile/driver/checkout`, {
+  //     const response = await fetch(`http://localhost:5000/api/mobile/driver/checkout`, {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //         Authorization: `Bearer ${token}`,
+  //       },
+  //       body: JSON.stringify({
+  //         tripId,
+  //         vehicleId,
+  //         driverId,
+  //         performedById: driverId,
+  //         performedByRole: "driver",
+  //         endOdometer: parseInt(endOdometer),
+  //         endLocation,
+  //       }),
+  //     });
+
+  //     if (response.ok) {
+  //       await response.json();
+  //       router.push('/dashboard');
+  //     } else {
+  //       const errData = await response.text();
+  //       console.error("Check-out failed:", errData);
+  //       Alert.alert("Error", "Could not complete check-out.");
+  //     }
+  //   } catch (err) {
+  //     console.error("Checkout error:", err);
+  //     Alert.alert("Error", "Something went wrong.");
+  //   }
+  // };
+const handleCheckOut = async () => {
+  if (!endOdometer || !endLocation) {
+    Alert.alert("Missing Fields", "Please fill all fields before checking out.");
+    return;
+  }
+
+  try {
+    const token = await getToken();
+    if (!token) {
+      Alert.alert("Auth Error", "No token found.");
       return;
     }
 
-    try {
-      const token = await getToken();
-      if (!token) {
-        Alert.alert("Auth Error", "No token found.");
-        return;
-      }
+    const decoded = jwtDecode(token);
+    const role = decoded.role;
 
-      const response = await fetch("http://localhost:5000/api/mobile/driver/checkout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          tripId,
-          vehicleId,
-          driverId,
-          performedById: driverId,
-          performedByRole: "driver",
-          endOdometer: parseInt(endOdometer),
-          endLocation,
-        }),
-      });
+    let url = '';
+    let body = {
+      tripId,
+      vehicleId,
+      endOdometer: parseInt(endOdometer),
+      endLocation,
+    };
 
-      if (response.ok) {
-        await response.json();
-        router.push('/dashboard');
-      } else {
-        const errData = await response.text();
-        console.error("Check-out failed:", errData);
-        Alert.alert("Error", "Could not complete check-out.");
-      }
-    } catch (err) {
-      console.error("Checkout error:", err);
-      Alert.alert("Error", "Something went wrong.");
+    if (role === 'driver') {
+      url = `${API_BASE_URL}/api/mobile/driver/checkout`;
+      // performedById and performedByRole will be added server side as driver id from token
+    } else if (role === 'supervisor') {
+      url = `${API_BASE_URL}/api/mobile/supervisor/checkout`;
+      body = {
+        ...body,
+        driverId, // this should be selected or passed as prop (the driver to checkout)
+        performedByRole: 'supervisor',
+        performedById: decoded.id,
+      };
+    } else {
+      Alert.alert("Unauthorized", "You don't have permission to check out.");
+      return;
     }
-  };
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (response.ok) {
+      await response.json();
+      router.push('/dashboard');
+    } else {
+      const errData = await response.text();
+      console.error("Check-out failed:", errData);
+      Alert.alert("Error", "Could not complete check-out.");
+    }
+  } catch (err) {
+    console.error("Checkout error:", err);
+    Alert.alert("Error", "Something went wrong.");
+  }
+};
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>

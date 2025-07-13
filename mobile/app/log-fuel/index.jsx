@@ -4,6 +4,7 @@ import { Button, TextInput, Text, useTheme } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getItemAsync } from 'expo-secure-store'; // Only for native
 import { jwtDecode } from 'jwt-decode';
+import API_BASE_URL from '../../config/api';
 
 const LogFuelScreen = () => {
   const theme = useTheme();
@@ -64,7 +65,7 @@ const LogFuelScreen = () => {
         token = await getItemAsync('token');
       }
 
-      const response = await fetch("http://localhost:5000/api/mobile/driver/fuel", {
+      const response = await fetch(`${API_BASE_URL}/api/mobile/driver/fuel`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Platform, Alert } from 'react-native';
 import { Button, Menu, useTheme } from 'react-native-paper';
 import { router, useLocalSearchParams } from 'expo-router';
 import { getItemAsync } from 'expo-secure-store';
+import API_BASE_URL from '../../config/api';
 
 export default function AssignDriver() {
   const { vehicle } = useLocalSearchParams(); // expects vehicle to be an ID string
@@ -24,7 +25,7 @@ export default function AssignDriver() {
       try {
         const token = await getToken();
 
-        const res = await fetch("http://localhost:5000/api/mobile/drivers", {
+        const res = await fetch(`${API_BASE_URL}/api/mobile/drivers`, {
           headers: {
             "Authorization": `Bearer ${token}`,
             "Content-Type": "application/json",
@@ -45,7 +46,7 @@ export default function AssignDriver() {
     try {
       const token = await getToken();
 
-      const res = await fetch("http://localhost:5000/api/mobile/supervisor/assignments", {
+      const res = await fetch(`${API_BASE_URL}/api/mobile/supervisor/assignments`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,

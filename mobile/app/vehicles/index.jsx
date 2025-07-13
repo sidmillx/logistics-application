@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, Platform, Alert } from 'react-native'
 import { Card, Button, useTheme, ActivityIndicator } from 'react-native-paper';
 import { router } from 'expo-router';
 import { getItemAsync } from 'expo-secure-store';
+import API_BASE_URL from '../../config/api';
 
 export default function VehicleFleet() {
   const theme = useTheme();
@@ -23,11 +24,11 @@ export default function VehicleFleet() {
         const token = await getToken();
         if (!token) {
           Alert.alert('Auth Error', 'No token found. Please log in again.');
-          router.replace('/login'); // Redirect to login if no token
+          router.replace('/'); // Redirect to login if no token
           return;
         }
 
-        const response = await fetch('http://localhost:5000/api/mobile/supervisor/vehicles', {
+        const response = await fetch(`${API_BASE_URL}/api/mobile/supervisor/vehicles`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',

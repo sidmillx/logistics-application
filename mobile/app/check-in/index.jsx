@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { Button, TextInput, Text, useTheme, ActivityIndicator } from 'react-native-paper';
+import API_BASE_URL from '../../config/api';
 
 const CheckInScreen = ({navigation}) => {
 
@@ -16,7 +17,7 @@ const CheckInScreen = ({navigation}) => {
    useEffect(() => {
     const fetchAssignedVehicle = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/mobile/driver/assignment");
+        const res = await fetch(`${API_BASE_URL}/api/mobile/driver/assignment`);
         const data = await res.json();
 
         if (data.message === "No assignment found") {
@@ -42,7 +43,7 @@ const CheckInScreen = ({navigation}) => {
       return;
     }
     try {
-      const response = await fetch("http://localhost:5000/api/mobile/driver/checkin", {
+      const response = await fetch(`${API_BASE_URL}/api/mobile/driver/checkin`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

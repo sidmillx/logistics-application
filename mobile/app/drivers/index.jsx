@@ -3,6 +3,7 @@ import { View, StyleSheet, FlatList, Alert, Platform } from 'react-native';
 import { Card, Text, useTheme, ActivityIndicator } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { getItemAsync } from 'expo-secure-store';
+import API_BASE_URL from '../../config/api';
 
 export default function DriversScreen() {
   const theme = useTheme();
@@ -21,7 +22,7 @@ export default function DriversScreen() {
         // Use expo-secure-store for native platforms
         token = await getItemAsync('token');
       }
-        const res = await fetch('http://localhost:5000/api/mobile/supervisor/drivers', {
+        const res = await fetch(`${API_BASE_URL}/api/mobile/supervisor/drivers`, {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`, // optional if your endpoint needs auth

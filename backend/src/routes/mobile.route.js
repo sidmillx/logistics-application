@@ -174,12 +174,57 @@ router.post("/supervisor/checkin", authenticate, authorize("supervisor"), async 
   }
 });
 
+// router.post("/supervisor/checkout", authenticate, authorize("supervisor"), async (req, res) => {
+//   try {
+//     const [record] = await db.insert(checkouts).values({ ...req.body, supervisor_id: req.user.id }).returning();
+//     res.status(201).json(record);
+//   } catch (err) {
+//     res.status(500).json({ error: "Failed to check out vehicle" });
+//   }
+// });
+
 router.post("/supervisor/checkout", authorize("supervisor"), async (req, res) => {
   try {
-    const [record] = await db.insert(checkouts).values({ ...req.body, supervisor_id: req.user.id }).returning();
-    res.status(201).json(record);
+    const {
+      tripId,
+      vehicleId,
+      driverId,
+      endOdometer,
+      endLocation
+    } = req.body;
+
+    if (!tripId || !vehicleId || !driverId || !endOdometer || !endLocation) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const supervisorId = req.user.id;
+
+    // Insert checkout record
+    const [record] = await db.insert(checkouts).values({
+      vehicleId,
+      driverId,
+      performedById: supervisorId,
+      performedByRole: "supervisor",
+      endOdometer,
+      endLocation,
+      checkedOutAt: new Date(),
+      supervisor_id: supervisorId,
+    }).returning();
+
+    // Update trip details
+    await db.update(trips)
+      .set({
+        odometerEnd: endOdometer,
+        locationEnd: endLocation,
+        checkOutTime: new Date()
+      })
+      .where(eq(trips.id, tripId));
+
+    res.status(201).json({ message: "Checked out successfully by supervisor", checkout: record });
+
   } catch (err) {
-    res.status(500).json({ error: "Failed to check out vehicle" });
+    console.error("Supervisor check-out error:", err);
+    res.status(500).json({ error: "Supervisor check-out failed" });
   }
 });
 
@@ -196,31 +241,32 @@ router.post("/supervisor/fuel", authorize("supervisor"), async (req, res) => {
 router.get("/supervisor/vehicles/:id/details", authenticate, authorize("supervisor"), async (req, res) => {
   try {
     const vehicleId = req.params.id;
+    console.log("Fetching vehicle details for:", vehicleId);
 
-    // Fetch vehicle details including last check-in, current driver, odometer, etc.
     const result = await db.execute(sql`
-   SELECT 
-    v.id,
-    v.make,
-    v.model,
-    v.plate_number,
-    v.status,
-    u.fullname AS current_driver,
-    ci.checked_in_at,
-    ci.start_odometer
-FROM vehicles v
-LEFT JOIN assignments a ON a.vehicle_id = v.id
-LEFT JOIN users u ON u.id = a.driver_id
-LEFT JOIN LATERAL (
-    SELECT c.checked_in_at, c.start_odometer
-    FROM checkins c
-    WHERE c.vehicle_id = v.id
-    ORDER BY c.checked_in_at DESC
-    LIMIT 1
-) ci ON true
-WHERE v.id = $1;
-
+      SELECT 
+        v.id,
+        v.make,
+        v.model,
+        v.plate_number,
+        v.status,
+        u.fullname AS current_driver,
+        ci.checked_in_at,
+        ci.start_odometer
+      FROM vehicles v
+      LEFT JOIN assignments a ON a.vehicle_id = v.id
+      LEFT JOIN users u ON u.id = a.driver_id
+      LEFT JOIN LATERAL (
+          SELECT c.checked_in_at, c.start_odometer
+          FROM checkins c
+          WHERE c.vehicle_id = v.id
+          ORDER BY c.checked_in_at DESC
+          LIMIT 1
+      ) ci ON true
+      WHERE v.id = ${vehicleId}
     `);
+
+    console.log("Query result:", result.rows);
 
     const vehicle = result.rows[0];
 
@@ -230,7 +276,7 @@ WHERE v.id = $1;
 
     res.json(vehicle);
   } catch (err) {
-    console.error("Failed to fetch vehicle details", err);
+    console.error("❌ Failed to fetch vehicle details:", err); // <== this is key
     res.status(500).json({ error: "Failed to fetch vehicle details" });
   }
 });
@@ -358,24 +404,70 @@ router.get("/driver/active-trip", authenticate, async (req, res) => {
 //   }
 // });
 
-router.post("/driver/checkout", async (req, res) => {
+// router.post("/driver/checkout", async (req, res) => {
+//   try {
+//     const {
+//       tripId,
+//       vehicleId,
+//       driverId,
+//       performedById,
+//       performedByRole,
+//       endOdometer,
+//       endLocation
+//     } = req.body;
+
+//     // Basic validation
+//     if (!tripId || !vehicleId || !driverId || !performedById || !performedByRole || !endOdometer || !endLocation) {
+//       return res.status(400).json({ error: "Missing required fields" });
+//     }
+
+//     // Insert into checkouts
+//     const [record] = await db.insert(checkouts).values({
+//       vehicleId,
+//       driverId,
+//       performedById,
+//       performedByRole,
+//       endOdometer,
+//       endLocation,
+//       checkedOutAt: new Date()
+//     }).returning();
+
+//     // Update trip
+//     await db.update(trips)
+//       .set({
+//         odometerEnd: endOdometer,
+//         locationEnd: endLocation,
+//         checkOutTime: new Date()
+//       })
+//       .where(eq(trips.id, tripId));
+
+//     res.status(201).json({ message: "Checked out successfully", checkout: record });
+
+//   } catch (err) {
+//     console.error("Driver check-out error:", err);
+//     res.status(500).json({ error: "Driver check-out failed" });
+//   }
+// });
+router.post("/driver/checkout", authorize("driver"), async (req, res) => {
   try {
     const {
       tripId,
       vehicleId,
-      driverId,
-      performedById,
-      performedByRole,
       endOdometer,
       endLocation
     } = req.body;
 
     // Basic validation
-    if (!tripId || !vehicleId || !driverId || !performedById || !performedByRole || !endOdometer || !endLocation) {
+    if (!tripId || !vehicleId || !endOdometer || !endLocation) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // Insert into checkouts
+    // performedById and performedByRole from req.user (token)
+    const performedById = req.user.id;
+    const performedByRole = "driver";
+    const driverId = req.user.id; // driver checking out themselves
+
+    // Insert checkout record
     const [record] = await db.insert(checkouts).values({
       vehicleId,
       driverId,
@@ -386,7 +478,7 @@ router.post("/driver/checkout", async (req, res) => {
       checkedOutAt: new Date()
     }).returning();
 
-    // Update trip
+    // Update trip details
     await db.update(trips)
       .set({
         odometerEnd: endOdometer,
