@@ -4,7 +4,7 @@ import Table from "../components/Table";
 import fuelIcon from "../assets/icons/fuel.svg";
 import chartIcon from "../assets/icons/chart.svg";
 import { useParams, Link } from "react-router-dom";
-import { API_BASE_URL } from "../config/config";
+import API_BASE_URL  from "../config/config";
 
 const ViewFuelLogs = () => {
   const { id } = useParams();

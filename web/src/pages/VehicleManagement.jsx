@@ -8,7 +8,7 @@ import carIcon from "../assets/icons/car_directions.svg";
 import truckIcon from "../assets/icons/truck.svg";
 import trafficIcon from "../assets/icons/traffic.svg";
 import { useState, useEffect } from "react";
-import {API_BASE_URL} from "../config/config";
+import API_BASE_URL from "../config/config";
 
 import Swal from 'sweetalert2';
 import { toast } from 'react-toastify';
