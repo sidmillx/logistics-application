@@ -34,9 +34,9 @@ const Dashboard = () => {
 
       {/* Top Summary Cards */}
       <div style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>
-        <Card title="Total Trips" value={summary.totalTrips || 0} icon="🚌" />
-        <Card title="Most Active Driver" value={summary.topDriver || "N/A"} icon="👤" />
-        <Card title="Most Used Vehicle" value={summary.topVehicle || "N/A"} icon="🚚" />
+        <Card title="Total Trips" value={summary.totalTrips || 0} icon={<img src="/icons/location.svg" alt="" />} />
+        <Card title="Most Active Driver" value={summary.topDriver || "N/A"} icon={<img src="/icons/person.svg" />} />
+        <Card title="Most Used Vehicle" value={summary.topVehicle || "N/A"} icon={<img src="/icons/car_directions.svg" />} />
       </div>
 
       {/* Utilization Charts */}
