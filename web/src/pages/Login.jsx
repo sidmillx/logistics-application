@@ -24,11 +24,10 @@ const Login = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        toast.error(data.message || "Login failed");
+        toast.error(data.message || "Invalid credentials!");
         return;
       }
 
-      // Save user and token to localStorage
       localStorage.setItem("user", JSON.stringify(data.user));
       localStorage.setItem("token", data.token);
 
@@ -41,37 +40,76 @@ const Login = () => {
   };
 
   return (
-    <div style={{ maxWidth: 400, margin: "auto", padding: 20, background: "#fff", borderRadius: 8 }}>
-      <h2>Login</h2>
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: 12 }}>
-          <label>Username:</label><br />
-          <input
-            type="text"
-            name="username"
-            value={formData.username}
-            onChange={handleChange}
-            required
-            style={{ width: "100%", padding: 8 }}
-          />
-        </div>
-        <div style={{ marginBottom: 12 }}>
-          <label>Password:</label><br />
-          <input
-            type="password"
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-            required
-            style={{ width: "100%", padding: 8 }}
-          />
-        </div>
-        <button type="submit" style={{ padding: 10, width: "100%", backgroundColor: "#1976d2", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer" }}>
-          Login
-        </button>
-      </form>
+    <div style={styles.page}>
+      <div style={styles.container}>
+        <h3 className="mb-3">Login</h3>
+        <p style={{ marginBottom: 20 }}>Please enter your credentials.</p>
+
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: 16 }}>
+            <input
+              type="text"
+              name="username"
+              placeholder="Username"
+              value={formData.username}
+              onChange={handleChange}
+              required
+              style={styles.input}
+            />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <input
+              type="password"
+              name="password"
+              placeholder="Password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              style={styles.input}
+            />
+          </div>
+          <button type="submit" style={styles.button}>Login</button>
+        </form>
+      </div>
     </div>
   );
+};
+
+const styles = {
+  page: {
+    height: "100vh",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    background: "linear-gradient(135deg, #1e3c72, #2a5298)",
+  },
+  container: {
+    background: "#fff",
+    padding: 30,
+    borderRadius: 10,
+    boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)",
+    width: "100%",
+    maxWidth: 400,
+    textAlign: "center",
+  },
+  input: {
+    width: "100%",
+    padding: 12,
+    borderRadius: 6,
+    border: "1px solid #ccc",
+    outline: "none",
+    fontSize: 16,
+  },
+  button: {
+    padding: "12px",
+    width: "100%",
+    backgroundColor: "#1e3c72",
+    color: "#fff",
+    border: "none",
+    borderRadius: 6,
+    fontSize: 16,
+    cursor: "pointer",
+  },
 };
 
 export default Login;
