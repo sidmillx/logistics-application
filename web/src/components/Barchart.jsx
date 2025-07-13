@@ -15,3 +15,5 @@ const CustomBarChart = ({ data, dataKey, xKey }) => (
 
 export default CustomBarChart;
 
+// changed file name to BarChart.jsx
+
