@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Card from "../components/Card";
 import CustomBarChart from "../components/BarChart";
+import API_BASE_URL from "../config/config";
 
 const Dashboard = () => {
   const [summary, setSummary] = useState({});
@@ -11,9 +12,9 @@ const Dashboard = () => {
     const fetchDashboardData = async () => {
       try {
         const [summaryRes, driverRes, vehicleRes] = await Promise.all([
-          fetch("http://localhost:5000/api/admin/dashboard/summary"),
-          fetch("http://localhost:5000/api/admin/dashboard/driver-utilization"),
-          fetch("http://localhost:5000/api/admin/dashboard/vehicle-utilization"),
+          fetch(`${API_BASE_URL}/api/admin/dashboard/summary`),
+          fetch(`${API_BASE_URL}/api/admin/dashboard/driver-utilization`),
+          fetch(`${API_BASE_URL}/api/admin/dashboard/vehicle-utilization`),
         ]);
 
         setSummary(await summaryRes.json());

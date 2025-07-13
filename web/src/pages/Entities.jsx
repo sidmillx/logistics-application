@@ -4,6 +4,7 @@ import Table from "../components/Table";
 import { Link } from "react-router-dom";
 import editIcon from "../assets/icons/edit.svg";
 import deleteIcon from "../assets/icons/delete.svg";
+import API_BASE_URL from "../config/config";
 
 const Entities = () => {
   const [summary, setSummary] = useState({ totalEntities: 0, totalVehicles: 0, availableVehicles: 0 });
@@ -15,7 +16,7 @@ const Entities = () => {
     if (!confirmDelete) return;
 
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/entities/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/entities/${id}`, {
         method: "DELETE",
       });
 
@@ -25,7 +26,7 @@ const Entities = () => {
 
       // Update UI
       setTableData(prev => prev.filter(e => e.id !== id));
-      const summaryRes = await fetch("http://localhost:5000/api/admin/summary");
+      const summaryRes = await fetch(`${API_BASE_URL}/api/admin/summary`);
       const summaryData = await summaryRes.json();
       setSummary(summaryData);
     } catch (err) {
@@ -40,8 +41,8 @@ const Entities = () => {
     const fetchData = async () => {
       try {
         const [summaryRes, entityStatsRes] = await Promise.all([
-          fetch("http://localhost:5000/api/admin/summary"),
-          fetch("http://localhost:5000/api/admin/entities/overview")
+          fetch(`${API_BASE_URL}/api/admin/summary`),
+          fetch(`${API_BASE_URL}/api/admin/entities/overview`)
         ]);
 
         const summaryData = await summaryRes.json();

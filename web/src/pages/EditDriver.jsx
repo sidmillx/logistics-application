@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
+import API_BASE_URL from "../config/config";
 
 const EditDriver = () => {
   const navigate = useNavigate();
@@ -17,7 +18,7 @@ const EditDriver = () => {
   useEffect(() => {
     const fetchDriver = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/admin/drivers/${id}`);
+        const res = await fetch(`${API_BASE_URL}/api/admin/drivers/${id}`);
         const data = await res.json();
         setFormData({
           name: data.name || "",
@@ -44,7 +45,7 @@ const EditDriver = () => {
     e.preventDefault();
 
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/drivers/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/drivers/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

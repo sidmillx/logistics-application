@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import API_BASE_URL from "../config/config";
 
 const AddVehicle = () => {
   const navigate = useNavigate();
@@ -16,7 +17,7 @@ const AddVehicle = () => {
   useEffect(() => {
     const fetchEntities = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/admin/entities");
+        const res = await fetch(`${API_BASE_URL}/api/admin/entities`);
         const data = await res.json();
         setEntities(data);
       } catch (err) {
@@ -34,7 +35,7 @@ const AddVehicle = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch("http://localhost:5000/api/admin/vehicles", {
+      const res = await fetch(`${API_BASE_URL}/api/admin/vehicles`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),

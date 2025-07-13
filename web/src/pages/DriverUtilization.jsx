@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import accountCircleIcon from "../assets/icons/account_circle.svg";
 import locationIcon from "../assets/icons/location.svg";
 import chartIcon from "../assets/icons/chart.svg";
+import API_BASE_URL from "../config/config";
 
 const DriverUtilization = () => {
   const [filter, setFilter] = useState("trips");
@@ -16,14 +17,14 @@ const DriverUtilization = () => {
 
   useEffect(() => {
     const fetchSummary = async () => {
-      const res = await fetch("http://localhost:5000/api/admin/drivers/utilization/summary");
+      const res = await fetch(`${API_BASE_URL}/api/admin/drivers/utilization/summary`);
       const data = await res.json();
       setSummary(data);
     };
     fetchSummary();
 
     const fetchDetails = async () => {
-      const res = await fetch("http://localhost:5000/api/admin/drivers/utilization/details");
+      const res = await fetch(`${API_BASE_URL}/api/admin/drivers/utilization/details`);
       const data = await res.json();
       setTableData(data);
 

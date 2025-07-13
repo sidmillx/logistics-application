@@ -7,6 +7,7 @@ import fuelIcon from "../assets/icons/fuel.svg";
 import tuneIcon from "../assets/icons/tune.svg";
 import chartIcon from "../assets/icons/chart.svg";
 import { Link } from "react-router-dom";
+import API_BASE_URL from "../config/config";
 
 const FuelUtilization = () => {
   const [filter, setFilter] = useState("litres");
@@ -17,9 +18,9 @@ const FuelUtilization = () => {
   useEffect(() => {
     const fetchAll = async () => {
       const [sumRes, chartRes, tableRes] = await Promise.all([
-        fetch("http://localhost:5000/api/admin/fuel-utilization/summary"),
-        fetch(`http://localhost:5000/api/admin/fuel-utilization/chart?groupBy=${filter}`),
-        fetch("http://localhost:5000/api/admin/fuel-utilization/table"),
+        fetch(`${API_BASE_URL}/api/admin/fuel-utilization/summary`),
+        fetch(`${API_BASE_URL}/api/admin/fuel-utilization/chart?groupBy=${filter}`),
+        fetch(`${API_BASE_URL}/api/admin/fuel-utilization/table`),
       ]);
 
       setSummary(await sumRes.json());

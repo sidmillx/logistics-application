@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import API_BASE_URL from "../config/config";
 
 
 const AddDriver = () => {
@@ -18,7 +19,7 @@ const AddDriver = () => {
     // Fetch entities on component mount
   useEffect(() => {
     setLoading(true);
-    fetch("http://localhost:5000/api/admin/entities")
+    fetch(`${API_BASE_URL}/api/admin/entities`)
       .then((res) => res.json())
       .then((data) => setEntities(data))
       .catch((err) => console.error("Failed to fetch entities:", err))
@@ -32,7 +33,7 @@ const AddDriver = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch("http://localhost:5000/api/admin/drivers/add", {
+      const res = await fetch(`${API_BASE_URL}/api/admin/drivers/add`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

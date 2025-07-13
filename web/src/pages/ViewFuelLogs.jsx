@@ -4,6 +4,7 @@ import Table from "../components/Table";
 import fuelIcon from "../assets/icons/fuel.svg";
 import chartIcon from "../assets/icons/chart.svg";
 import { useParams, Link } from "react-router-dom";
+import { API_BASE_URL } from "../config/config";
 
 const ViewFuelLogs = () => {
   const { id } = useParams();
@@ -14,8 +15,8 @@ const ViewFuelLogs = () => {
     const fetchData = async () => {
       try {
         const [vehicleRes, logsRes] = await Promise.all([
-          fetch(`http://localhost:5000/api/admin/vehicles/${id}`),
-          fetch(`http://localhost:5000/api/admin/vehicles/${id}/fuel-logs`),
+          fetch(`${API_BASE_URL}/api/admin/vehicles/${id}`),
+          fetch(`${API_BASE_URL}/api/admin/vehicles/${id}/fuel-logs`),
         ]);
 
         if (!vehicleRes.ok || !logsRes.ok) throw new Error("Fetch failed");

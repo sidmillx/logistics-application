@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
+import API_BASE_URL from "../config/config";
 
 
 const EditVehicle = () => {
@@ -22,8 +23,8 @@ const EditVehicle = () => {
     const fetchData = async () => {
       try {
         const [entityRes, vehicleRes] = await Promise.all([
-          fetch("http://localhost:5000/api/admin/entities"),
-          fetch(`http://localhost:5000/api/admin/vehicles/${id}`),
+          fetch(`${API_BASE_URL}/api/admin/entities`),
+          fetch(`${API_BASE_URL}/api/admin/vehicles/${id}`),
         ]);
 
         if (!entityRes.ok || !vehicleRes.ok) throw new Error("Fetch error");
@@ -58,7 +59,7 @@ const EditVehicle = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/vehicles/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/vehicles/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),

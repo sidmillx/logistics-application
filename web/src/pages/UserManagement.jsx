@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Table from "../components/Table";
 import { toast } from "react-toastify";
+import API_BASE_URL from "../config/config";
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -27,7 +28,7 @@ const UserManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/admin/users");
+      const res = await fetch(`${API_BASE_URL}/api/admin/users`);
       const data = await res.json();
       setUsers(data);
     } catch (err) {
@@ -64,7 +65,7 @@ const UserManagement = () => {
     if (!newRole) return;
 
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/users/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/users/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role: newRole }),
@@ -107,7 +108,7 @@ const UserManagement = () => {
     e.preventDefault();
 
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/users`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/users`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newUser),

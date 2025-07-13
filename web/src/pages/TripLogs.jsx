@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Card from "../components/Card";
 import Table from "../components/Table";
 import downloadIcon from "../assets/icons/download.svg";
+import API_BASE_URL from "../config/config";
 
 const TripLogs = () => {
   const [search, setSearch] = useState("");
@@ -12,7 +13,7 @@ const TripLogs = () => {
   useEffect(() => {
     const fetchTrips = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/admin/trips/logs");
+        const res = await fetch(`${API_BASE_URL}/api/admin/trips/logs`);
         const data = await res.json();
 
         const formatted = data.map(trip => {

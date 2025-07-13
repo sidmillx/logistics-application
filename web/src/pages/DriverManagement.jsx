@@ -7,6 +7,7 @@ import personIcon from "../assets/icons/person_pin_circle.svg";
 import groupIcon from "../assets/icons/groups.svg";
 import barchartIcon from "../assets/icons/barchart.svg";
 import { useState, useEffect } from "react";
+import {API_BASE_URL} from "../config/config";
 
 
 const DriverManagement = () => {
@@ -26,8 +27,8 @@ const DriverManagement = () => {
       try {
         // Adjust these URLs to match your backend endpoints
         const [driversRes, summaryRes] = await Promise.all([
-          fetch("http://localhost:5000/api/admin/drivers"),          // Fetch driver list
-          fetch("http://localhost:5000/api/admin/drivers/summary"),  // Fetch summary stats
+          fetch(`${API_BASE_URL}/api/admin/drivers`),          // Fetch driver list
+          fetch(`${API_BASE_URL}/api/admin/drivers/summary`),  // Fetch summary stats
         ]);
 
         if (!driversRes.ok || !summaryRes.ok) {
@@ -56,7 +57,7 @@ const DriverManagement = () => {
   if (!confirmDelete) return;
 
   try {
-    const res = await fetch(`http://localhost:5000/api/admin/drivers/${id}`, {
+    const res = await fetch(`${API_BASE_URL}/api/admin/drivers/${id}`, {
       method: "DELETE",
     });
 

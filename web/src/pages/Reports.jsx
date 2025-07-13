@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Table from "../components/Table";
 import { saveAs } from "file-saver";
+import { API_BASE_URL } from "../config/config";
 
 const TABS = [
   { label: "Trip Reports", value: "trips" },
@@ -28,7 +29,7 @@ const Reports = () => {
   useEffect(() => {
     const fetchData = async () => {
       const params = new URLSearchParams(filters);
-      const res = await fetch(`http://localhost:5000/api/admin/reports/${activeTab}?${params}`);
+      const res = await fetch(`${API_BASE_URL}/api/admin/reports/${activeTab}?${params}`);
       const data = await res.json();
       setTableData(data.rows);
       setColumns(data.columns);
@@ -38,7 +39,7 @@ const Reports = () => {
 
   const exportFile = async (type) => {
     const params = new URLSearchParams(filters);
-    const res = await fetch(`http://localhost:5000/api/admin/reports/${activeTab}/export-${type}?${params}`);
+    const res = await fetch(`${API_BASE_URL}/api/admin/reports/${activeTab}/export-${type}?${params}`);
     const blob = await res.blob();
     const ext = type === "excel" ? "csv" : "pdf";
     saveAs(blob, `${activeTab}-report.${ext}`);

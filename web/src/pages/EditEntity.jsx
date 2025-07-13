@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import { toast } from "react-toastify";
+import API_BASE_URL from "../config/config";
 
 
 const EditEntity = () => {
@@ -20,7 +21,7 @@ const EditEntity = () => {
  useEffect(() => {
    const fetchEntity = async () => {
      try {
-       const res = await fetch(`http://localhost:5000/api/admin/entities/${id}`);
+       const res = await fetch(`${API_BASE_URL}/api/admin/entities/${id}`);
        if (!res.ok) throw new Error("Failed to fetch entity");
        const data = await res.json();
        setFormData({
@@ -39,7 +40,7 @@ const EditEntity = () => {
     // Here you could send to your backend API
     console.log("New Entity:", formData);
     try {
-     const res = await fetch(`http://localhost:5000/api/admin/entities/${id}`, {
+     const res = await fetch(`${API_BASE_URL}/api/admin/entities/${id}`, {
        method: "PUT",
        headers: { "Content-Type": "application/json" },
        body: JSON.stringify(formData),

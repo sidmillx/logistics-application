@@ -8,6 +8,7 @@ import carIcon from "../assets/icons/car_directions.svg";
 import truckIcon from "../assets/icons/truck.svg";
 import trafficIcon from "../assets/icons/traffic.svg";
 import { useState, useEffect } from "react";
+import {API_BASE_URL} from "../config/config";
 
 import Swal from 'sweetalert2';
 import { toast } from 'react-toastify';
@@ -25,8 +26,8 @@ import { toast } from 'react-toastify';
     const fetchVehicles = async () => {
       try {
         const [vehiclesRes, summaryRes] = await Promise.all([
-          fetch("http://localhost:5000/api/admin/vehicles"),
-          fetch("http://localhost:5000/api/admin/vehicles/summary"), // Create this route
+          fetch(`${API_BASE_URL}/api/admin/vehicles`),
+          fetch(`${API_BASE_URL}/api/admin/vehicles/summary`), // Create this route
         ]);
 
         const vehiclesData = await vehiclesRes.json();
@@ -56,7 +57,7 @@ import { toast } from 'react-toastify';
   if (!result.isConfirmed) return;
 
   try {
-    const res = await fetch(`http://localhost:5000/api/admin/vehicles/${id}`, {
+    const res = await fetch(`${API_BASE_URL}/api/admin/vehicles/${id}`, {
       method: 'DELETE',
     });
 

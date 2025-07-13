@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Card from "../components/Card";
 import Table from "../components/Table";
+import API_BASE_URL from "../config/config";
 
 const DriverDetails = () => {
   const { id } = useParams();
@@ -9,11 +10,11 @@ const DriverDetails = () => {
   const [trips, setTrips] = useState([]);
 
   useEffect(() => {
-    fetch(`http://localhost:5000/api/admin/drivers/${id}`)
+    fetch(`${API_BASE_URL}/api/admin/drivers/${id}`)
       .then(res => res.json())
       .then(data => setDriver(data));
 
-    fetch(`http://localhost:5000/api/admin/drivers/${id}/recent-trips`)
+    fetch(`${API_BASE_URL}/api/admin/drivers/${id}/recent-trips`)
       .then(res => res.json())
       .then(data => setTrips(data));
   }, [id]);
