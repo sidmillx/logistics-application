@@ -8,183 +8,83 @@ import locationIcon from "../assets/icons/location.svg";
 import barchartIcon from "../assets/icons/barchart.svg";
 import mapIcon from "../assets/icons/map.svg";
 import driverAssignmentIcon from "../assets/icons/assignment_driver.svg";
+import styles from "./Navbar.module.css"; // Correct CSS Module import
 
 const Navbar = () => {
-  const navStyle = {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    height: "100vh",
-    width: "250px",
-    backgroundColor: "#00204D",
-    paddingTop: "20px",
-    boxShadow: "2px 0 8px rgba(0, 0, 0, 0.3)",
-    display: "flex",
-    flexDirection: "column",
-    fontFamily: "'Poppins', sans-serif",
-  };
-
-  const logoNameStyle = {
-    color: "#fff",
-    textAlign: "center",
-    marginBottom: "20px",
-  };
-
-  const ulStyle = {
-    listStyle: "none",
-    padding: 0,
-    margin: 0,
-  };
-
-  const liStyle = {
-    margin: "10px 0",
-  };
-
-  const linkStyle = {
-    display: "flex",
-    alignItems: "center",
-    color: "white",
-    textDecoration: "none",
-    padding: "10px 20px",
-    transition: "background 0.2s",
-  };
-
-  const hoverStyle = {
-    backgroundColor: "#2e2e42",
-  };
-
-  const spanStyle = {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: "12px",
-  };
-
-  const imgStyle = {
-    filter: "brightness(0) invert(1)",
-    width: "20px",
-    height: "20px",
-  };
-
   return (
-    <nav style={navStyle}>
-      <div style={logoNameStyle}>
+    <nav className={styles.nav}>
+      <div className={styles.logoName}>
         <h1>Logistics</h1>
       </div>
-      <ul style={ulStyle}>
-        <li style={liStyle}>
-          <Link
-            to="/dashboard"
-            style={linkStyle}
-            onMouseEnter={(e) => (e.target.style.backgroundColor = hoverStyle.backgroundColor)}
-            onMouseLeave={(e) => (e.target.style.backgroundColor = "")}
-          >
-            <span style={spanStyle}>
-              <img src={homeIcon} alt="Dashboard" style={imgStyle} />
+      <ul className={styles.ul}>
+        <li className={styles.li}>
+          <Link to="/dashboard">
+            <span className={styles.span}>
+              <img src={homeIcon} alt="Dashboard" />
             </span>
             Dashboard
           </Link>
         </li>
-        <li style={liStyle}>
-          <Link
-            to="/driver-management"
-            style={linkStyle}
-            onMouseEnter={(e) => (e.target.style.backgroundColor = hoverStyle.backgroundColor)}
-            onMouseLeave={(e) => (e.target.style.backgroundColor = "")}
-          >
-            <span style={spanStyle}>
-              <img src={personIcon} alt="Driver" style={imgStyle} />
+        <li className={styles.li}>
+          <Link to="/driver-management">
+            <span className={styles.span}>
+              <img src={personIcon} alt="Driver" />
             </span>
             Driver Management
           </Link>
         </li>
-        <li style={liStyle}>
-          <Link
-            to="/vehicle-management"
-            style={linkStyle}
-            onMouseEnter={(e) => (e.target.style.backgroundColor = hoverStyle.backgroundColor)}
-            onMouseLeave={(e) => (e.target.style.backgroundColor = "")}
-          >
-            <span style={spanStyle}>
-              <img src={carIcon} alt="Vehicle" style={imgStyle} />
+        <li className={styles.li}>
+          <Link to="/vehicle-management">
+            <span className={styles.span}>
+              <img src={carIcon} alt="Vehicle" />
             </span>
             Vehicle Management
           </Link>
         </li>
-        <li style={liStyle}>
-          <Link
-            to="/entities"
-            style={linkStyle}
-            onMouseEnter={(e) => (e.target.style.backgroundColor = hoverStyle.backgroundColor)}
-            onMouseLeave={(e) => (e.target.style.backgroundColor = "")}
-          >
-            <span style={spanStyle}>
-              <img src={mapIcon} alt="Trip" style={imgStyle} />
+        <li className={styles.li}>
+          <Link to="/entities">
+            <span className={styles.span}>
+              <img src={mapIcon} alt="Trip" />
             </span>
             Entities
           </Link>
         </li>
-        <li style={liStyle}>
-          <Link
-            to="/trip-logs"
-            style={linkStyle}
-            onMouseEnter={(e) => (e.target.style.backgroundColor = hoverStyle.backgroundColor)}
-            onMouseLeave={(e) => (e.target.style.backgroundColor = "")}
-          >
-            <span style={spanStyle}>
-              <img src={locationIcon} alt="Trip" style={imgStyle} />
+        <li className={styles.li}>
+          <Link to="/trip-logs">
+            <span className={styles.span}>
+              <img src={locationIcon} alt="Trip" />
             </span>
             Trip Logs
           </Link>
         </li>
-        <li style={liStyle}>
-          <Link
-            to="/driver-utilization"
-            style={linkStyle}
-            onMouseEnter={(e) => (e.target.style.backgroundColor = hoverStyle.backgroundColor)}
-            onMouseLeave={(e) => (e.target.style.backgroundColor = "")}
-          >
-            <span style={spanStyle}>
-              <img src={driverAssignmentIcon} alt="Trip" style={imgStyle} />
+        <li className={styles.li}>
+          <Link to="/driver-utilization">
+            <span className={styles.span}>
+              <img src={driverAssignmentIcon} alt="Trip" />
             </span>
             Driver Utilization
           </Link>
         </li>
-        <li style={liStyle}>
-          <Link
-            to="/fuel-utilization"
-            style={linkStyle}
-            onMouseEnter={(e) => (e.target.style.backgroundColor = hoverStyle.backgroundColor)}
-            onMouseLeave={(e) => (e.target.style.backgroundColor = "")}
-          >
-            <span style={spanStyle}>
-              <img src={fuelIcon} alt="Trip" style={imgStyle} />
+        <li className={styles.li}>
+          <Link to="/fuel-utilization">
+            <span className={styles.span}>
+              <img src={fuelIcon} alt="Trip" />
             </span>
             Fuel Utilization
           </Link>
         </li>
-        <li style={liStyle}>
-          <Link
-            to="/reports"
-            style={linkStyle}
-            onMouseEnter={(e) => (e.target.style.backgroundColor = hoverStyle.backgroundColor)}
-            onMouseLeave={(e) => (e.target.style.backgroundColor = "")}
-          >
-            <span style={spanStyle}>
-              <img src={barchartIcon} alt="Trip" style={imgStyle} />
+        <li className={styles.li}>
+          <Link to="/reports">
+            <span className={styles.span}>
+              <img src={barchartIcon} alt="Trip" />
             </span>
             Reports
           </Link>
         </li>
-        <li style={liStyle}>
-          <Link
-            to="/user-management"
-            style={linkStyle}
-            onMouseEnter={(e) => (e.target.style.backgroundColor = hoverStyle.backgroundColor)}
-            onMouseLeave={(e) => (e.target.style.backgroundColor = "")}
-          >
-            <span style={spanStyle}>
-              <img src={personIcon} alt="UserManagement" style={imgStyle} />
+        <li className={styles.li}>
+          <Link to="/user-management">
+            <span className={styles.span}>
+              <img src={personIcon} alt="UserManagement" />
             </span>
             User Management
           </Link>
