@@ -8,67 +8,84 @@ import locationIcon from "../assets/icons/location.svg";
 import barchartIcon from "../assets/icons/barchart.svg";
 import mapIcon from "../assets/icons/map.svg";
 import driverAssignmentIcon from "../assets/icons/assignment_driver.svg";
-import "./Navbar.module.css";
-
+import styles from "./Navbar.module.css"; // Correct CSS Module import
 
 const Navbar = () => {
   return (
-    <nav>
-      <div className="logo-name" style={{color: "#fff", textAlign: "center"}}><h1>Logistics</h1></div>
-      <ul>
-        <li>
+    <nav className={styles.nav}>
+      <div className={styles.logoName}>
+        <h1>Logistics</h1>
+      </div>
+      <ul className={styles.ul}>
+        <li className={styles.li}>
           <Link to="/dashboard">
-            <span><img src={homeIcon} alt="Dashboard" /></span>
+            <span className={styles.span}>
+              <img src={homeIcon} alt="Dashboard" />
+            </span>
             Dashboard
           </Link>
         </li>
-        <li>
+        <li className={styles.li}>
           <Link to="/driver-management">
-            <span><img src={personIcon} alt="Driver" /></span>
+            <span className={styles.span}>
+              <img src={personIcon} alt="Driver" />
+            </span>
             Driver Management
           </Link>
         </li>
-        <li>
+        <li className={styles.li}>
           <Link to="/vehicle-management">
-            <span><img src={carIcon} alt="Vehicle" /></span>
+            <span className={styles.span}>
+              <img src={carIcon} alt="Vehicle" />
+            </span>
             Vehicle Management
           </Link>
         </li>
-        
-        <li>
+        <li className={styles.li}>
           <Link to="/entities">
-            <span><img src={mapIcon} alt="Trip" /></span>
+            <span className={styles.span}>
+              <img src={mapIcon} alt="Trip" />
+            </span>
             Entities
           </Link>
         </li>
-        <li>
+        <li className={styles.li}>
           <Link to="/trip-logs">
-            <span><img src={locationIcon} alt="Trip" /></span>
+            <span className={styles.span}>
+              <img src={locationIcon} alt="Trip" />
+            </span>
             Trip Logs
           </Link>
         </li>
-        <li>
+        <li className={styles.li}>
           <Link to="/driver-utilization">
-            <span><img src={driverAssignmentIcon} alt="Trip" /></span>
+            <span className={styles.span}>
+              <img src={driverAssignmentIcon} alt="Trip" />
+            </span>
             Driver Utilization
           </Link>
         </li>
-        <li>
+        <li className={styles.li}>
           <Link to="/fuel-utilization">
-            <span><img src={fuelIcon} alt="Trip" /></span>
+            <span className={styles.span}>
+              <img src={fuelIcon} alt="Trip" />
+            </span>
             Fuel Utilization
           </Link>
         </li>
-        <li>
+        <li className={styles.li}>
           <Link to="/reports">
-            <span><img src={barchartIcon} alt="Trip" /></span>
+            <span className={styles.span}>
+              <img src={barchartIcon} alt="Trip" />
+            </span>
             Reports
           </Link>
         </li>
-
-         <li>
+        <li className={styles.li}>
           <Link to="/user-management">
-            <span><img src={personIcon} alt="UserManagement" /></span>
+            <span className={styles.span}>
+              <img src={personIcon} alt="UserManagement" />
+            </span>
             User Management
           </Link>
         </li>
