@@ -6,6 +6,7 @@ import API_BASE_URL from "../config/config";
 const Login = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ username: "", password: "" });
+  const [loading, setLoading] = useState(false);
 
   const handleChange = e => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -13,6 +14,7 @@ const Login = () => {
 
   const handleSubmit = async e => {
     e.preventDefault();
+    setLoading(true);
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
@@ -25,6 +27,7 @@ const Login = () => {
 
       if (!response.ok) {
         toast.error(data.message || "Invalid credentials!");
+        setLoading(false);
         return;
       }
 
@@ -36,6 +39,8 @@ const Login = () => {
     } catch (err) {
       console.error("Login error:", err);
       toast.error("Server error. Try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -68,7 +73,24 @@ const Login = () => {
               style={styles.input}
             />
           </div>
-          <button type="submit" style={styles.button}>Login</button>
+          <button
+            type="submit"
+            style={{
+              ...styles.button,
+              backgroundColor: loading ? "#999" : "#1e3c72",
+              cursor: loading ? "not-allowed" : "pointer",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+            disabled={loading}
+          >
+            {loading ? (
+              <div style={styles.loader}></div>
+            ) : (
+              "Login"
+            )}
+          </button>
         </form>
       </div>
     </div>
@@ -103,13 +125,29 @@ const styles = {
   button: {
     padding: "12px",
     width: "100%",
-    backgroundColor: "#1e3c72",
     color: "#fff",
     border: "none",
     borderRadius: 6,
     fontSize: 16,
-    cursor: "pointer",
+    height: 45,
+  },
+  loader: {
+    width: 20,
+    height: 20,
+    border: "3px solid #fff",
+    borderTop: "3px solid transparent",
+    borderRadius: "50%",
+    animation: "spin 1s linear infinite",
   },
 };
+
+// Append global CSS for loader animation
+const styleSheet = document.createElement("style");
+styleSheet.innerText = `
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}`;
+document.head.appendChild(styleSheet);
 
 export default Login;
