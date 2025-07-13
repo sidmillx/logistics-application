@@ -2,11 +2,11 @@ import React, { useState, useEffect } from "react";
 import Card from "../components/Card";
 import Table from "../components/Table";
 import downloadIcon from "../assets/icons/download.svg";
-import { Link } from "react-router-dom";
 
 const TripLogs = () => {
   const [search, setSearch] = useState("");
   const [trips, setTrips] = useState([]);
+  const [filteredTrips, setFilteredTrips] = useState([]);
   const [stats, setStats] = useState({ totalTrips: 0, avgDistance: 0, avgFuel: 0 });
 
   useEffect(() => {
@@ -14,7 +14,7 @@ const TripLogs = () => {
       try {
         const res = await fetch("http://localhost:5000/api/admin/trips/logs");
         const data = await res.json();
-        // Expected backend array with fields: id, fullname, vehicleId, locationStart, locationEnd, odometerStart, odometerEnd, checkInTime, checkOutTime, fuelCost, receiptUrl
+
         const formatted = data.map(trip => {
           const dist = trip.odometerEnd - trip.odometerStart;
           const durMs = new Date(trip.checkOutTime) - new Date(trip.checkInTime);
@@ -26,36 +26,50 @@ const TripLogs = () => {
             vehicleReg: trip.vehicleId,
             startLocation: trip.locationStart,
             endLocation: trip.locationEnd,
-            distance: `${dist} km`,
+            distance: dist,
             duration: `${hours}h ${minutes}m`,
             date: new Date(trip.checkOutTime).toLocaleDateString(),
-            fuelUsed: `${trip.fuelCost} E`,
-            receiptUrl: trip.receiptUrl // for later download
+            fuelUsed: trip.fuelCost,
+            receiptUrl: trip.receiptUrl
           };
         });
 
         setTrips(formatted);
+        setFilteredTrips(formatted);
         setStats({
           totalTrips: formatted.length,
-          avgDistance: (formatted.reduce((sum, t) => sum + parseInt(t.distance), 0) / formatted.length).toFixed(1),
-          avgFuel: (formatted.reduce((sum, t) => sum + parseInt(t.fuelUsed), 0) / formatted.length).toFixed(1)
+          avgDistance: (formatted.reduce((sum, t) => sum + t.distance, 0) / formatted.length || 0).toFixed(1),
+          avgFuel: (formatted.reduce((sum, t) => sum + t.fuelUsed, 0) / formatted.length || 0).toFixed(1)
         });
       } catch (err) {
         console.error("Failed to fetch trip logs:", err);
       }
     };
+
     fetchTrips();
   }, []);
+
+  useEffect(() => {
+    const keyword = search.toLowerCase();
+    const filtered = trips.filter(
+      trip =>
+        trip.driverName.toLowerCase().includes(keyword) ||
+        trip.vehicleReg.toLowerCase().includes(keyword) ||
+        trip.startLocation.toLowerCase().includes(keyword) ||
+        trip.endLocation.toLowerCase().includes(keyword)
+    );
+    setFilteredTrips(filtered);
+  }, [search, trips]);
 
   const columns = [
     { key: "driverName", title: "Driver Name" },
     { key: "vehicleReg", title: "Vehicle Reg" },
     { key: "startLocation", title: "Start Location" },
     { key: "endLocation", title: "End Location" },
-    { key: "distance", title: "Distance" },
+    { key: "distance", title: "Distance", render: (row) => `${row.distance} km` },
     { key: "duration", title: "Duration" },
     { key: "date", title: "Date" },
-    { key: "fuelUsed", title: "Fuel Cost" },
+    { key: "fuelUsed", title: "Fuel Cost", render: (row) => `${row.fuelUsed} E` },
     {
       key: "receipt",
       title: "Receipt",
@@ -64,8 +78,7 @@ const TripLogs = () => {
           title="Download Receipt"
           style={{ background: "transparent", border: "none" }}
           onClick={() => {
-            // for now placeholder logic: open receipt URL or alert
-            if (row.receiptUrl) window.open(row.receiptUrl);
+            if (row.receiptUrl) window.open(row.receiptUrl, "_blank");
             else alert("Receipt not available");
           }}
         >
@@ -78,18 +91,40 @@ const TripLogs = () => {
   return (
     <div style={{ padding: "20px" }}>
       <h1>Trip Logs</h1>
+
       <div style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>
         <Card title="Total Trips" value={stats.totalTrips} />
         <Card title="Average Trip Distance" value={`${stats.avgDistance} KM`} />
         <Card title="Average Fuel per Trip" value={`${stats.avgFuel} E`} />
       </div>
 
-      {/* Filters */}
-      {/* ... unchanged ... */}
+      {/* 🔍 Search & Filter Section */}
+      <div style={{ display: "flex", gap: "12px", marginBottom: "20px" }}>
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search driver, vehicle or location..."
+          style={{
+            flex: 1,
+            padding: "10px",
+            borderRadius: "6px",
+            border: "1px solid #ccc",
+            fontSize: "14px"
+          }}
+        />
+        {/* 🔧 Future filters like date range or entity can go here */}
+      </div>
 
-      <div style={{ background: "#fff", padding: "16px", borderRadius: "8px", marginBottom: "20px", boxShadow: "...", border: "1px solid #ccc" }}>
-        <h3>Trip Logs</h3>
-        <Table columns={columns} data={trips} />
+      <div style={{
+        background: "#fff",
+        padding: "16px",
+        borderRadius: "8px",
+        boxShadow: "0 2px 4px rgba(0,0,0,0.08)",
+        border: "1px solid #ccc"
+      }}>
+        <h3 style={{ marginBottom: "12px" }}>Trip Logs</h3>
+        <Table columns={columns} data={filteredTrips} />
       </div>
     </div>
   );

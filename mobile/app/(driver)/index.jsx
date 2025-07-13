@@ -2,18 +2,35 @@ import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { Button, Card, Text, useTheme, ActivityIndicator } from 'react-native-paper';
 import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const DashboardScreen = () => {
   const theme = useTheme();
 
   const [tripData, setTripData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const driverName = "John Dlamini"; // Replace with auth later
+  const [driverName, setDriverName] = useState('');
 
   useEffect(() => {
     const fetchActiveTrip = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/mobile/driver/active-trip");
+        const token = await AsyncStorage.getItem('token');
+        const userString = await AsyncStorage.getItem('user');
+        if (!token || !userString) {
+          Alert.alert("Authentication Error", "Please login again.");
+          router.replace('/login'); // Redirect to login if no token/user
+          return;
+        }
+
+        const user = JSON.parse(userString);
+        setDriverName(user.fullname || user.username || '');
+
+        const res = await fetch("http://localhost:5000/api/mobile/driver/active-trip", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
         const data = await res.json();
 
         if (data.message === "No active trip") {
@@ -68,7 +85,10 @@ const DashboardScreen = () => {
 
         <Button
           mode="outlined"
-          onPress={() => {/* Logout logic */}}
+          onPress={async () => {
+            await AsyncStorage.clear();
+            router.replace('/login');
+          }}
           style={styles.button}
         >
           Logout
@@ -127,12 +147,6 @@ const DashboardScreen = () => {
       >
         Log Fuel
       </Button>
-        {console.log("Navigating to checkout with:", {
-          tripId: tripData.tripId,
-          vehicleId: tripData.vehicleId,
-          driverId: tripData.driverId,
-        })
-        }
 
       <Button
         mode="outlined"

@@ -65,6 +65,13 @@ const Navbar = () => {
             Reports
           </Link>
         </li>
+
+         <li>
+          <Link to="/user-management">
+            <span><img src={personIcon} alt="UserManagement" /></span>
+            User Management
+          </Link>
+        </li>
       </ul>
     </nav>
   );

@@ -888,5 +888,68 @@ router.get("/dashboard/vehicle-utilization", async (req, res) => {
   }
 });
 
+// src/routes/admin.route.ts (or similar)
+router.get("/users", async (req, res) => {
+  try {
+    const users = await db.select({
+      id: usersTable.id,
+      fullname: usersTable.fullname,
+      username: usersTable.username,
+      role: usersTable.role,
+    }).from(usersTable);
+
+    res.json(users);
+  } catch (err) {
+    console.error("Fetch users error:", err);
+    res.status(500).json({ message: "Failed to fetch users" });
+  }
+});
+
+
+
+router.put("/users/:id", async (req, res) => {
+  const { id } = req.params;
+  const { role } = req.body;
+
+  if (!["admin", "supervisor", "driver"].includes(role)) {
+    return res.status(400).json({ message: "Invalid role" });
+  }
+
+  try {
+    const updated = await db
+      .update(usersTable)
+      .set({ role })
+      .where(eq(usersTable.id, id))
+      .returning();
+
+    if (!updated.length) return res.status(404).json({ message: "User not found" });
+
+    res.json({ message: "Role updated", user: updated[0] });
+  } catch (err) {
+    console.error("Update user role error:", err);
+    res.status(500).json({ message: "Failed to update user role" });
+  }
+});
+
+
+router.delete("/users/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const deleted = await db
+      .delete(usersTable)
+      .where(eq(usersTable.id, id))
+      .returning();
+
+    if (!deleted.length) return res.status(404).json({ message: "User not found" });
+
+    res.json({ message: "User deleted", user: deleted[0] });
+  } catch (err) {
+    console.error("Delete user error:", err);
+    res.status(500).json({ message: "Failed to delete user" });
+  }
+});
+
+
 
 export default router;

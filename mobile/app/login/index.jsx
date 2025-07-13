@@ -1,76 +1,97 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Image, TouchableOpacity, Alert } from 'react-native';
 import { Button, TextInput, Text, useTheme } from 'react-native-paper';
 import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const LoginScreen = () => {
-  const [driverName, setDriverName] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [secureTextEntry, setSecureTextEntry] = useState(true);
   const theme = useTheme();
 
-  const handleLogin = () => {
-  // Temporary mock authentication
-    const isSupervisor = driverName.toLowerCase().includes('supervisor');
-    
-    console.log(`Logging in as: ${driverName}, Supervisor: ${isSupervisor}`);
+  const handleLogin = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
 
-    if (isSupervisor) {
-      router.replace('/(supervisor)');
-    } else {
-      router.replace('/(driver)');
+      const data = await res.json();
+
+      if (!res.ok) {
+        Alert.alert("Login Failed", data.message || "Invalid credentials");
+        return;
+      }
+
+      await AsyncStorage.setItem("token", data.token);
+      await AsyncStorage.setItem("user", JSON.stringify(data.user));
+
+      const role = data.user.role;
+
+      if (role === "driver") {
+        router.replace("/(driver)");
+      } else if (role === "supervisor") {
+        router.replace("/(supervisor)");
+      } else {
+        Alert.alert("Unauthorized", "Only drivers and supervisors can use the app.");
+      }
+
+    } catch (err) {
+      console.error("Login error:", err);
+      Alert.alert("Error", "Something went wrong. Please try again.");
     }
   };
- 
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-          <Image 
-            source={require('../../assets/images/inyatsi-logo.png')} 
-            style={styles.logo}
-          />
-          
-          <Text variant="headlineMedium" style={styles.welcomeText}>
-            Welcome to Inyatsi Logistics
-          </Text>
-          
-          <Text variant="bodyMedium" style={styles.subtitle}>
-            Track trips. Log fuel. Stay connected.
-          </Text>
-          
-          <TextInput
-            label="Driver Name"
-            value={driverName}
-            onChangeText={setDriverName}
-            style={styles.input}
-            mode="outlined"
-          />
-          
-          <TextInput
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry={secureTextEntry}
-            style={styles.input}
-            mode="outlined"
-            right={<TextInput.Icon 
-              icon={secureTextEntry ? "eye-off" : "eye"} 
-              onPress={() => setSecureTextEntry(!secureTextEntry)}
-            />}
-          />
-          
-          <Button 
-            mode="contained" 
-            onPress={handleLogin}
-            style={styles.loginButton}
-          >
-            Login
-          </Button>
-          
-          <TouchableOpacity>
-            <Text style={styles.forgotPassword}>Forgot password?</Text>
-          </TouchableOpacity>
-        </View>
+      <Image 
+        source={require('../../assets/images/inyatsi-logo.png')} 
+        style={styles.logo}
+      />
+
+      <Text variant="headlineMedium" style={styles.welcomeText}>
+        Welcome to Inyatsi Logistics
+      </Text>
+
+      <Text variant="bodyMedium" style={styles.subtitle}>
+        Track trips. Log fuel. Stay connected.
+      </Text>
+
+      <TextInput
+        label="Username"
+        value={username}
+        onChangeText={setUsername}
+        style={styles.input}
+        mode="outlined"
+      />
+
+      <TextInput
+        label="Password"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry={secureTextEntry}
+        style={styles.input}
+        mode="outlined"
+        right={<TextInput.Icon 
+          icon={secureTextEntry ? "eye-off" : "eye"} 
+          onPress={() => setSecureTextEntry(!secureTextEntry)}
+        />}
+      />
+
+      <Button 
+        mode="contained" 
+        onPress={handleLogin}
+        style={styles.loginButton}
+      >
+        Login
+      </Button>
+
+      <TouchableOpacity>
+        <Text style={styles.forgotPassword}>Forgot password?</Text>
+      </TouchableOpacity>
+    </View>
   );
 };
 

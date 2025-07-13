@@ -9,7 +9,8 @@ import {
   fuelLogs,
   checkins,
   checkouts,
-  trips
+  trips,
+  supervisions
 } from "../db/schema.js";
 import { and, eq, isNotNull, isNull  } from "drizzle-orm";
 
@@ -23,20 +24,97 @@ const router = express.Router();
 
 // ========== SUPERVISOR ROUTES ==========
 // router.get("/supervisor/vehicles", authorize("supervisor"), async (req, res) => {
-router.get("/supervisor/vehicles", async (req, res) => {
+import { sql } from "drizzle-orm";
+// router.get("/supervisor/vehicles", authenticate, async (req, res) => {
+//   try {
+//     if (!req.user?.id) {
+//       return res.status(401).json({ error: "User authentication failed" });
+//     }
+
+//     const supervisorId = req.user.id;
+
+//     const result = await db.execute(sql`
+//       SELECT DISTINCT ON (v.id) v.*, u.fullname AS "driverName"
+//       FROM vehicles v
+//       JOIN assignments a ON a.vehicle_id = v.id
+//       JOIN supervisions s ON s.driver_id = a.driver_id
+//       LEFT JOIN users u ON a.driver_id = u.id
+//       WHERE s.supervisor_id = ${supervisorId}
+//     `);
+
+//     res.json(result.rows);
+//   } catch (err) {
+//     console.error("Failed to fetch vehicles:", err);
+//     res.status(500).json({ error: "Failed to fetch vehicles" });
+//   }
+// });
+
+router.get("/supervisor/vehicles", authenticate, async (req, res) => {
   try {
-    // Get all vehicles the supervisor is managing (indirect through assignments)
-    const result = await db.execute(`
-      SELECT v.* FROM vehicles v
-      JOIN assignments a ON a.vehicle_id = v.id
-      WHERE a.supervisor_id = $1
-    `, [req.user.id]);
+    const result = await db.execute(sql`
+        SELECT DISTINCT ON (v.id) v.*, u.fullname AS "driverName"
+        FROM vehicles v
+        LEFT JOIN assignments a ON a.vehicle_id = v.id
+        LEFT JOIN users u ON a.driver_id = u.id
+    `);
 
     res.json(result.rows);
   } catch (err) {
+    console.error("Failed to fetch vehicles:", err);
     res.status(500).json({ error: "Failed to fetch vehicles" });
   }
 });
+
+// src/routes/mobile.route.js
+router.get("/supervisor/drivers", authenticate, async (req, res) => {
+  try {
+    const supervisorId = req.user?.id;
+
+    if (!supervisorId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    console.log("Fetching drivers for supervisor:", supervisorId);
+
+    const drivers = await db.execute(
+      sql`
+        SELECT u.id, u.fullname AS name, COUNT(t.id) AS trips
+        FROM users u
+        INNER JOIN supervisions s ON s.driver_id = u.id
+        LEFT JOIN trips t ON t.driver_id = u.id
+        WHERE s.supervisor_id = ${supervisorId} AND u.role = 'driver'
+        GROUP BY u.id, u.fullname
+        ORDER BY u.fullname ASC
+      `
+    );
+
+    res.json(drivers.rows);
+  } catch (err) {
+    console.error("Failed to fetch drivers:", err);
+    res.status(500).json({ error: "Failed to fetch drivers" });
+  }
+});
+
+router.get("/drivers", authenticate, async (req, res) => {
+  try {
+    const result = await db.execute(sql`
+      SELECT id, fullname FROM users
+      WHERE role = 'driver'
+      ORDER BY fullname ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Failed to fetch drivers:", err);
+    res.status(500).json({ error: "Failed to fetch drivers" });
+  }
+});
+
+// To get only drivers assigned to a supervisor: above
+// SELECT u.id, u.fullname FROM users u
+// JOIN supervisions s ON s.driver_id = u.id
+// WHERE s.supervisor_id = ${supervisorId} AND u.role = 'driver'
+
+
 
 router.get("/supervisor/assignments", authorize("supervisor"), async (req, res) => {
   try {
@@ -87,7 +165,7 @@ router.post("/supervisor/assignments", async (req, res) => {
 });
 
 
-router.post("/supervisor/checkin", authorize("supervisor"), async (req, res) => {
+router.post("/supervisor/checkin", authenticate, authorize("supervisor"), async (req, res) => {
   try {
     const [record] = await db.insert(checkins).values({ ...req.body, supervisor_id: req.user.id }).returning();
     res.status(201).json(record);
@@ -113,6 +191,50 @@ router.post("/supervisor/fuel", authorize("supervisor"), async (req, res) => {
     res.status(500).json({ error: "Failed to log fuel" });
   }
 });
+
+// GET /api/supervisor/vehicles/:id/details
+router.get("/supervisor/vehicles/:id/details", authenticate, authorize("supervisor"), async (req, res) => {
+  try {
+    const vehicleId = req.params.id;
+
+    // Fetch vehicle details including last check-in, current driver, odometer, etc.
+    const result = await db.execute(sql`
+   SELECT 
+    v.id,
+    v.make,
+    v.model,
+    v.plate_number,
+    v.status,
+    u.fullname AS current_driver,
+    ci.checked_in_at,
+    ci.start_odometer
+FROM vehicles v
+LEFT JOIN assignments a ON a.vehicle_id = v.id
+LEFT JOIN users u ON u.id = a.driver_id
+LEFT JOIN LATERAL (
+    SELECT c.checked_in_at, c.start_odometer
+    FROM checkins c
+    WHERE c.vehicle_id = v.id
+    ORDER BY c.checked_in_at DESC
+    LIMIT 1
+) ci ON true
+WHERE v.id = $1;
+
+    `);
+
+    const vehicle = result.rows[0];
+
+    if (!vehicle) {
+      return res.status(404).json({ error: "Vehicle not found" });
+    }
+
+    res.json(vehicle);
+  } catch (err) {
+    console.error("Failed to fetch vehicle details", err);
+    res.status(500).json({ error: "Failed to fetch vehicle details" });
+  }
+});
+
 
 // ========== DRIVER ROUTES ==========
 // router.get("/driver/assignment", authorize("driver"), async (req, res) => {
@@ -186,9 +308,9 @@ router.post("/driver/checkin", async (req, res) => {
 });
 
 
-router.get("/driver/active-trip", async (req, res) => {
+router.get("/driver/active-trip", authenticate, async (req, res) => {
   try {
-    const driverId = '2368e66f-00c8-4e8e-8394-7662fa247306'; // replace later with req.user.id
+    const driverId = req.user.id;  // replace later with req.user.id
 
     const [trip] = await db
       .select({

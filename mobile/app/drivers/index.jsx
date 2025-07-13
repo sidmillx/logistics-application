@@ -1,30 +1,71 @@
-import { View, StyleSheet, FlatList } from 'react-native';
-import { Card, Text, useTheme } from 'react-native-paper';
-
-const driversData = [
-  { id: '1', name: 'Auxjorie Loyenne Géminité', trips: 'ET Tript', group: 'A' },
-  { id: '2', name: "B'hôtel Quad", trips: 'et Tript', group: 'B' },
-  { id: '3', name: 'Auxjorie', trips: 'ET Tript', group: 'C' },
-  { id: '4', name: 'Lesphonique Dermini', trips: 'ET Tript', group: 'C' },
-  { id: '5', name: 'Bannette Guile', trips: 'SG Tript', group: 'D' },
-];
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, FlatList, Alert, Platform } from 'react-native';
+import { Card, Text, useTheme, ActivityIndicator } from 'react-native-paper';
+import { useRouter } from 'expo-router';
+import { getItemAsync } from 'expo-secure-store';
 
 export default function DriversScreen() {
   const theme = useTheme();
-  
-  // Group drivers by their group letter
-  const groupedDrivers = driversData.reduce((acc, driver) => {
-    if (!acc[driver.group]) {
-      acc[driver.group] = [];
-    }
-    acc[driver.group].push(driver);
-    return acc;
-  }, {});
+  const router = useRouter();
+  const [groupedDrivers, setGroupedDrivers] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDrivers = async () => {
+      try {
+       let token;
+      if (Platform.OS === 'web') {
+        // Use localStorage for web
+        token = localStorage.getItem('token');
+      } else {
+        // Use expo-secure-store for native platforms
+        token = await getItemAsync('token');
+      }
+        const res = await fetch('http://localhost:5000/api/mobile/supervisor/drivers', {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`, // optional if your endpoint needs auth
+          },
+        });
+
+        if (!res.ok) {
+          throw new Error('Failed to fetch drivers');
+        }
+
+        const drivers = await res.json();
+
+        const grouped = drivers.reduce((acc, driver) => {
+          const group = driver.group || 'Ungrouped';
+          if (!acc[group]) acc[group] = [];
+          acc[group].push(driver);
+          return acc;
+        }, {});
+
+        setGroupedDrivers(grouped);
+      } catch (err) {
+        console.error("Driver fetch error:", err);
+        Alert.alert("Error", "Could not load drivers.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDrivers();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.colors.background, justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator animating size="large" />
+        <Text>Loading drivers...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Text variant="headlineSmall" style={styles.title}>Drivers</Text>
-      
+
       <FlatList
         data={Object.entries(groupedDrivers)}
         renderItem={({ item: [group, drivers] }) => (
@@ -34,7 +75,7 @@ export default function DriversScreen() {
               {drivers.map(driver => (
                 <View key={driver.id} style={styles.driverItem}>
                   <Text variant="bodyLarge">{driver.name}</Text>
-                  <Text variant="bodyMedium" style={styles.tripsText}>{driver.trips}</Text>
+                  <Text variant="bodyMedium" style={styles.tripsText}>{driver.trips || 'No trips'}</Text>
                 </View>
               ))}
             </Card.Content>
@@ -43,14 +84,6 @@ export default function DriversScreen() {
         keyExtractor={([group]) => group}
         contentContainerStyle={styles.listContent}
       />
-      
-      {/* <Button 
-        mode="contained" 
-        onPress={() => router.push('/drivers/add')}
-        style={styles.addButton}
-      >
-        Add New Driver
-      </Button> */}
     </View>
   );
 }
@@ -82,8 +115,5 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 20,
-  },
-  addButton: {
-    marginTop: 16,
   },
 });

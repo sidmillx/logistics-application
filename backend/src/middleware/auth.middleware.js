@@ -25,6 +25,8 @@ export const authenticate = (req, res, next) => {
 export const authorize = (...allowedRoles) => {
     return (req, res, next) => {
         if (!req.user || !req.user.role || !allowedRoles.includes(req.user.role)) {
+            console.log(`Required role: ${allowedRoles.join(', ')}, User role: ${req.user ? req.user.role : 'None'}`);
+            console.error("Access denied for user:", req.user);
             return res.status(403).json({ error: "Access Denied" });
         }
         next(); // User is authorized, proceed to the next middleware or route handler

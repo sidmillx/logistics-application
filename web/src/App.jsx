@@ -21,6 +21,7 @@ import EditDriver from './pages/EditDriver';
 import EditEntity from './pages/EditEntity';
 import EditVehicle from './pages/EditVehicle';
 import ViewFuelLogs from './pages/ViewFuelLogs';
+import UserManagement from './pages/UserManagement';
 import Login from './pages/Login';
 import PrivateRoute from './utils/PrivateRoutes';
 
@@ -96,6 +97,11 @@ function App() {
           <Route path="/reports" element={
             <PrivateRoute><Reports /></PrivateRoute>
           } />
+          <Route path="/user-management" element={
+            <PrivateRoute><UserManagement /></PrivateRoute>
+          } />
+          
+          {/* Redirect all other paths to dashboard */}
 
           <Route path="*" element={<Navigate to="/dashboard" />} />
         </Routes>

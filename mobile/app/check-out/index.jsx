@@ -1,57 +1,90 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import { View, StyleSheet, Alert, Platform } from 'react-native';
 import { Button, TextInput, Text, useTheme } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { getItemAsync } from 'expo-secure-store'; // Only for native
+import { jwtDecode } from 'jwt-decode';
 
 const CheckOutScreen = () => {
   const theme = useTheme();
   const router = useRouter();
-  const { tripId, vehicleId, driverId } = useLocalSearchParams();
-
-  useEffect(() => {
-  console.log("CheckOut Params:", { tripId, vehicleId, driverId });
-}, []);
+  const { tripId, vehicleId } = useLocalSearchParams();
 
   const [endOdometer, setEndOdometer] = useState('');
   const [endLocation, setEndLocation] = useState('');
+  const [driverId, setDriverId] = useState(null);
 
- const handleCheckOut = async () => {
-  if (!endOdometer || !endLocation) {
-    Alert.alert("Missing Fields", "Please fill all fields before checking out.");
-    return;
-  }
-
-  try {
-    const response = await fetch("http://localhost:5000/api/mobile/driver/checkout", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        tripId,
-        vehicleId,
-        driverId,
-        performedById: driverId,
-        performedByRole: "driver",
-        endOdometer: parseInt(endOdometer),
-        endLocation
-      })
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      router.push('/dashboard');
+  const getToken = async () => {
+    if (Platform.OS === 'web') {
+      return localStorage.getItem('token');
     } else {
-      const errData = await response.text();
-      console.error("Check-out failed:", errData);
-      Alert.alert("Error", "Could not complete check-out.");
+      return await getItemAsync('token');
     }
-  } catch (err) {
-    console.error("Checkout error:", err);
-    Alert.alert("Error", "Something went wrong.");
-  }
-};
+  };
 
+  useEffect(() => {
+    const loadDriverId = async () => {
+      try {
+        const token = await getToken();
+        if (!token) {
+          Alert.alert("Auth Error", "No token found.");
+          return;
+        }
+
+        const decoded = jwtDecode(token);
+        setDriverId(decoded.id);
+      } catch (error) {
+        console.error("Token decode error:", error);
+        Alert.alert("Auth Error", "Failed to get user identity.");
+      }
+    };
+
+    loadDriverId();
+  }, []);
+
+  const handleCheckOut = async () => {
+    if (!endOdometer || !endLocation) {
+      Alert.alert("Missing Fields", "Please fill all fields before checking out.");
+      return;
+    }
+
+    try {
+      const token = await getToken();
+      if (!token) {
+        Alert.alert("Auth Error", "No token found.");
+        return;
+      }
+
+      const response = await fetch("http://localhost:5000/api/mobile/driver/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          tripId,
+          vehicleId,
+          driverId,
+          performedById: driverId,
+          performedByRole: "driver",
+          endOdometer: parseInt(endOdometer),
+          endLocation,
+        }),
+      });
+
+      if (response.ok) {
+        await response.json();
+        router.push('/dashboard');
+      } else {
+        const errData = await response.text();
+        console.error("Check-out failed:", errData);
+        Alert.alert("Error", "Could not complete check-out.");
+      }
+    } catch (err) {
+      console.error("Checkout error:", err);
+      Alert.alert("Error", "Something went wrong.");
+    }
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
