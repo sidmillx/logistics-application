@@ -1,6 +1,6 @@
 // config/api.js
 
-const IS_DEV = true; // set to false for production
+const IS_DEV = false; // set to false for production
 
 const API_BASE_URL = IS_DEV
   ? "http://localhost:5000"

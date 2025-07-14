@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import { View, StyleSheet, Alert, Platform } from 'react-native';
 import { Button, TextInput, Text, useTheme, ActivityIndicator } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -16,16 +16,34 @@ const CheckInScreen = () => {
   const [startLocation, setStartLocation] = useState('');
   const [userInfo, setUserInfo] = useState(null);
 
+  const getToken = async () => {
+    return Platform.OS === 'web'
+      ? localStorage.getItem('token')
+      : await AsyncStorage.getItem('token');
+  };
+
   useEffect(() => {
     const loadUserAndVehicle = async () => {
       try {
-        // Load user info from storage
         const userStr = await AsyncStorage.getItem("user");
+        const token = await getToken();
+
+        if (!userStr || !token) {
+          Alert.alert("Auth Error", "User not authenticated");
+          router.replace("/");
+          return;
+        }
+
         const user = JSON.parse(userStr);
         setUserInfo(user);
         console.log("Loaded user:", user);
 
-        const res = await fetch(`${API_BASE_URL}/api/mobile/driver/assignment`);
+        const res = await fetch(`${API_BASE_URL}/api/mobile/driver/assignment`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
         const data = await res.json();
         console.log("Loaded assigned vehicle:", data);
 
@@ -56,25 +74,28 @@ const CheckInScreen = () => {
       return;
     }
 
+    const token = await getToken();
+
     try {
       const payload = {
         vehicleId: assignedVehicle.vehicleId,
-        driverId: assignedVehicle.driverId,
+        driverId: assignedVehicle.driverId || userInfo.id,
         performedById: userInfo.id,
-        performedByRole: userInfo.role, // "driver" or "supervisor"
+        performedByRole: userInfo.role,
         startOdometer: parseInt(startOdometer),
         startLocation,
-        tripPurpose
+        tripPurpose,
       };
 
-      console.log("Check-in payload:", payload); // <== Debug log here
+      console.log("Check-in payload:", payload);
 
       const response = await fetch(`${API_BASE_URL}/api/mobile/driver/checkin`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
@@ -101,12 +122,13 @@ const CheckInScreen = () => {
         <ActivityIndicator animating={true} />
       ) : assignedVehicle ? (
         <TextInput
-          label="Assigned Vehicle ID"
-          value={assignedVehicle.vehicleId}
-          style={styles.input}
-          mode="outlined"
-          editable={false}
-        />
+        label="Assigned Vehicle"
+        value={assignedVehicle.plateNumber || ''}
+        style={styles.input}
+        mode="outlined"
+        editable={false}
+      />
+
       ) : (
         <TextInput
           label="Assigned Vehicle"
@@ -164,30 +186,12 @@ const CheckInScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-  },
-  title: {
-    marginBottom: 5,
-    fontWeight: 'bold',
-  },
-  subtitle: {
-    marginBottom: 20,
-    color: '#666',
-  },
-  input: {
-    marginBottom: 15,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 20,
-  },
-  button: {
-    flex: 1,
-    marginHorizontal: 5,
-  },
+  container: { flex: 1, padding: 20 },
+  title: { marginBottom: 5, fontWeight: 'bold' },
+  subtitle: { marginBottom: 20, color: '#666' },
+  input: { marginBottom: 15 },
+  buttonContainer: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 },
+  button: { flex: 1, marginHorizontal: 5 },
 });
 
 export default CheckInScreen;

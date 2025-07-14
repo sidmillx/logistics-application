@@ -13,7 +13,7 @@ import {
   supervisions,
   drivers
 } from "../db/schema.js";
-import { and, isNotNull, isNull, desc   } from "drizzle-orm";
+import {  isNotNull, isNull, desc   } from "drizzle-orm";
 
 const router = express.Router();
 
@@ -287,18 +287,37 @@ router.get("/supervisor/vehicles/:id/details", authenticate, authorize("supervis
 
 // ========== DRIVER ROUTES ==========
 // router.get("/driver/assignment", authorize("driver"), async (req, res) => {
+import { and } from "drizzle-orm";
+
 router.get("/driver/assignment", authenticate, async (req, res) => {
   try {
-    const result = await db.select().from(assignments).where(eq(assignments.driverId, req.user.id));
+    const driverId = req.user.id;
+
+    const result = await db
+      .select({
+        assignmentId: assignments.id,
+        vehicleId: assignments.vehicleId,
+        assignedAt: assignments.assignedAt,
+        plateNumber: vehicles.plateNumber,
+        make: vehicles.make,
+        model: vehicles.model,
+      })
+      .from(assignments)
+      .innerJoin(vehicles, eq(assignments.vehicleId, vehicles.id))
+      .where(eq(assignments.driverId, driverId))
+      .limit(1);
+
     if (result.length === 0) {
       return res.json({ message: "No assignment found" });
     }
+
     res.json(result[0]);
   } catch (err) {
-    console.log("Failed to check assignment:", err);
+    console.error("❌ Failed to fetch assignment:", err);
     res.status(500).json({ error: "Failed to check assignment" });
   }
 });
+
 
 
 // router.post("/driver/checkin", async (req, res) => {
@@ -412,10 +431,9 @@ router.post("/driver/checkin", async (req, res) => {
 });
 
 
-
 router.get("/driver/active-trip", authenticate, async (req, res) => {
   try {
-    const driverId = req.user.id;  // replace later with req.user.id
+    const driverId = req.user.id;  
 
     const [trip] = await db
       .select({
@@ -452,6 +470,7 @@ router.get("/driver/active-trip", authenticate, async (req, res) => {
     res.status(500).json({ error: "Failed to fetch active trip" });
   }
 });
+
 
 
 // router.post("/driver/checkout", authorize("driver"), async (req, res) => {

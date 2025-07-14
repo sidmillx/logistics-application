@@ -85,7 +85,7 @@ const LogFuelScreen = () => {
 
       if (response.ok) {
         await response.json();
-        router.push('/dashboard');
+        router.push('/');
       } else {
         const errData = await response.text();
         console.error("Fuel log failed:", errData);

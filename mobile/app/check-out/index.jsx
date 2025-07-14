@@ -79,7 +79,7 @@ const CheckOutScreen = () => {
 
       if (response.ok) {
         await response.json();
-        router.push('/dashboard');
+        router.push('/');
       } else {
         const errText = await response.text();
         console.error("Check-out failed:", errText);
