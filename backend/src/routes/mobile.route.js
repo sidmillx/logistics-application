@@ -10,9 +10,10 @@ import {
   checkins,
   checkouts,
   trips,
-  supervisions
+  supervisions,
+  drivers
 } from "../db/schema.js";
-import { and, eq, isNotNull, isNull  } from "drizzle-orm";
+import { and, isNotNull, isNull, desc   } from "drizzle-orm";
 
 const router = express.Router();
 
@@ -24,7 +25,7 @@ const router = express.Router();
 
 // ========== SUPERVISOR ROUTES ==========
 // router.get("/supervisor/vehicles", authorize("supervisor"), async (req, res) => {
-import { sql } from "drizzle-orm";
+import { sql, eq, gte } from "drizzle-orm";
 // router.get("/supervisor/vehicles", authenticate, async (req, res) => {
 //   try {
 //     if (!req.user?.id) {
@@ -57,6 +58,8 @@ router.get("/supervisor/vehicles", authenticate, async (req, res) => {
         LEFT JOIN assignments a ON a.vehicle_id = v.id
         LEFT JOIN users u ON a.driver_id = u.id
     `);
+
+    console.log("Fetched vehicles:", result.rows);
 
     res.json(result.rows);
   } catch (err) {
@@ -284,11 +287,9 @@ router.get("/supervisor/vehicles/:id/details", authenticate, authorize("supervis
 
 // ========== DRIVER ROUTES ==========
 // router.get("/driver/assignment", authorize("driver"), async (req, res) => {
-router.get("/driver/assignment", async (req, res) => {
+router.get("/driver/assignment", authenticate, async (req, res) => {
   try {
-    const testDriverId = "2368e66f-00c8-4e8e-8394-7662fa247306"
-    // const result = await db.select().from(assignments).where(eq(assignments.driverId, req.user.id));
-    const result = await db.select().from(assignments).where(eq(assignments.driverId, testDriverId));
+    const result = await db.select().from(assignments).where(eq(assignments.driverId, req.user.id));
     if (result.length === 0) {
       return res.json({ message: "No assignment found" });
     }
@@ -299,9 +300,63 @@ router.get("/driver/assignment", async (req, res) => {
   }
 });
 
+
+// router.post("/driver/checkin", async (req, res) => {
+//   try {
+
+//     const {
+//       vehicleId,
+//       driverId,
+//       startOdometer,
+//       startLocation,
+//       performedById,
+//       performedByRole,
+//       tripPurpose
+//     } = req.body;
+
+//     console.log({
+//   vehicleId,
+//   driverId,
+//   performedById,
+//   performedByRole,
+//   startOdometer,
+//   startLocation,
+// });
+
+
+//     const [record] = await db.insert(checkins).values({
+//       vehicleId,
+//       // driverId: req.user.id,
+//       driverId,
+//       performedById,
+//       performedByRole,
+//       startOdometer,
+//       startLocation,
+//       tripPurpose,
+//     }).returning();
+
+
+//     const [trip] = await db.insert(trips).values({
+//       // driverId: req.user.id,
+//       driverId: req.body.driverId,
+//       vehicleId: req.body.vehicleId,
+//       odometerStart: req.body.startOdometer,
+//       locationStart: req.body.startLocation,
+//       checkInTime: new Date()
+//     }).returning();
+
+//     res.status(201).json({
+//       checkin: record,
+//       tripId: trip.id
+//     });
+//   } catch (err) {
+//     console.error("Driver check-in error:", err);
+//     res.status(500).json({ error: "Driver check-in failed" });
+//   }
+// });
+
 router.post("/driver/checkin", async (req, res) => {
   try {
-
     const {
       vehicleId,
       driverId,
@@ -312,46 +367,50 @@ router.post("/driver/checkin", async (req, res) => {
       tripPurpose
     } = req.body;
 
-    console.log({
-  vehicleId,
-  driverId,
-  performedById,
-  performedByRole,
-  startOdometer,
-  startLocation,
-});
+    if (!vehicleId || !driverId || !startOdometer || !startLocation || !performedById || !performedByRole || !tripPurpose) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
 
-
-    const [record] = await db.insert(checkins).values({
+    console.log("Check-in payload:", {
       vehicleId,
-      // driverId: req.user.id,
       driverId,
       performedById,
       performedByRole,
       startOdometer,
       startLocation,
       tripPurpose,
+    });
+
+    const [checkin] = await db.insert(checkins).values({
+      vehicleId,
+      driverId,
+      performedById,
+      performedByRole,
+      startOdometer,
+      startLocation,
+      tripPurpose,
+      timestamp: new Date(), // add timestamp if not auto-generated
     }).returning();
 
-
     const [trip] = await db.insert(trips).values({
-      // driverId: req.user.id,
-      driverId: req.body.driverId,
-      vehicleId: req.body.vehicleId,
-      odometerStart: req.body.startOdometer,
-      locationStart: req.body.startLocation,
-      checkInTime: new Date()
+      driverId,
+      vehicleId,
+      odometerStart: startOdometer,
+      locationStart: startLocation,
+      checkInTime: new Date(),
     }).returning();
 
     res.status(201).json({
-      checkin: record,
-      tripId: trip.id
+      message: "Check-in successful",
+      checkin,
+      tripId: trip.id,
     });
   } catch (err) {
     console.error("Driver check-in error:", err);
     res.status(500).json({ error: "Driver check-in failed" });
   }
 });
+
 
 
 router.get("/driver/active-trip", authenticate, async (req, res) => {
@@ -448,46 +507,113 @@ router.get("/driver/active-trip", authenticate, async (req, res) => {
 //     res.status(500).json({ error: "Driver check-out failed" });
 //   }
 // });
-router.post("/driver/checkout", authorize("driver"), async (req, res) => {
+// router.post("/driver/checkout", authorize("driver"), async (req, res) => {
+//   try {
+//     const {
+//       tripId,
+//       vehicleId,
+//       endOdometer,
+//       endLocation
+//     } = req.body;
+
+//     // Basic validation
+//     if (!tripId || !vehicleId || !endOdometer || !endLocation) {
+//       return res.status(400).json({ error: "Missing required fields" });
+//     }
+
+//     // performedById and performedByRole from req.user (token)
+//     const performedById = req.user.id;
+//     const performedByRole = "driver";
+//     const driverId = req.user.id; // driver checking out themselves
+
+//     // Insert checkout record
+//     const [record] = await db.insert(checkouts).values({
+//       vehicleId,
+//       driverId,
+//       performedById,
+//       performedByRole,
+//       endOdometer,
+//       endLocation,
+//       checkedOutAt: new Date()
+//     }).returning();
+
+//     // Update trip details
+//     await db.update(trips)
+//       .set({
+//         odometerEnd: endOdometer,
+//         locationEnd: endLocation,
+//         checkOutTime: new Date()
+//       })
+//       .where(eq(trips.id, tripId));
+
+//     res.status(201).json({ message: "Checked out successfully", checkout: record });
+
+//   } catch (err) {
+//     console.error("Driver check-out error:", err);
+//     res.status(500).json({ error: "Driver check-out failed" });
+//   }
+// });
+
+router.post("/driver/checkout", async (req, res) => {
   try {
     const {
       tripId,
       vehicleId,
+      driverId,
+      performedById,
+      performedByRole,
       endOdometer,
       endLocation
     } = req.body;
 
-    // Basic validation
-    if (!tripId || !vehicleId || !endOdometer || !endLocation) {
+    // Validate required fields
+    if (
+      !tripId ||
+      !vehicleId ||
+      !driverId ||
+      !performedById ||
+      !performedByRole ||
+      !endOdometer ||
+      !endLocation
+    ) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // performedById and performedByRole from req.user (token)
-    const performedById = req.user.id;
-    const performedByRole = "driver";
-    const driverId = req.user.id; // driver checking out themselves
-
-    // Insert checkout record
-    const [record] = await db.insert(checkouts).values({
+    console.log("Check-out payload:", {
+      tripId,
       vehicleId,
       driverId,
       performedById,
       performedByRole,
       endOdometer,
       endLocation,
-      checkedOutAt: new Date()
+    });
+
+    // Insert into checkouts table
+    const [checkout] = await db.insert(checkouts).values({
+      tripId,
+      vehicleId,
+      driverId,
+      performedById,
+      performedByRole,
+      endOdometer,
+      endLocation,
+      checkedOutAt: new Date(),
     }).returning();
 
-    // Update trip details
+    // Update trip end details
     await db.update(trips)
       .set({
         odometerEnd: endOdometer,
         locationEnd: endLocation,
-        checkOutTime: new Date()
+        checkOutTime: new Date(),
       })
       .where(eq(trips.id, tripId));
 
-    res.status(201).json({ message: "Checked out successfully", checkout: record });
+    res.status(201).json({
+      message: "Check-out successful",
+      checkout
+    });
 
   } catch (err) {
     console.error("Driver check-out error:", err);
@@ -495,6 +621,35 @@ router.post("/driver/checkout", authorize("driver"), async (req, res) => {
   }
 });
 
+
+
+// GET /api/mobile/dashboard
+router.get('/dashboard', async (req, res) => {
+  try {
+    // Total vehicles
+    const totalVehicles = await db.select().from(vehicles);
+    
+    // Active drivers (currently checked-in)
+    const activeDriverRows = await db
+      .selectDistinctOn([checkins.driverId])
+      .from(checkins)
+      .orderBy(checkins.driverId, desc(checkins.checkedInAt));
+
+    const activeDrivers = activeDriverRows.length;
+
+    // Fuel logs
+    const fuel_logs = await db.select().from(fuelLogs);
+
+    res.json({
+      totalVehicles: totalVehicles.length,
+      activeDrivers,
+      fuelLogs: fuel_logs.length,
+    });
+  } catch (err) {
+    console.error("Dashboard fetch error:", err);
+    res.status(500).json({ error: 'Failed to load dashboard data' });
+  }
+});
 
 router.post("/driver/fuel", async (req, res) => {
   try {

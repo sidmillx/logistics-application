@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Platform, ActivityIndicator, Alert } from 'reac
 import { Button, Card, useTheme } from 'react-native-paper';
 import { router, useLocalSearchParams } from 'expo-router';
 import { getItemAsync } from 'expo-secure-store';
-import API_BASE_URL from '../../config/api';
+import API_BASE_URL from '../../../config/api';
 
 export default function VehicleDetails() {
   const { vehicleId, vehicleName } = useLocalSearchParams();
@@ -26,8 +26,7 @@ export default function VehicleDetails() {
         const token = await getToken();
         console.log("Token used:", token);
         // console.log("Token:", token);
-        // const res = await fetch(`${API_BASE_URL}/api/mobile/supervisor/vehicles/${vehicleId}/details`, {
-        const res = await fetch(`http://localhost:5000/api/mobile/supervisor/vehicles/${vehicleId}/details`, {
+        const res = await fetch(`${API_BASE_URL}/api/mobile/supervisor/vehicles/${vehicleId}/details`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -41,6 +40,7 @@ export default function VehicleDetails() {
         }
 
         const data = await res.json();
+        console.log("Vehicle details fetched:", data);
         setVehicleDetails(data);
       } catch (err) {
         console.error("Fetch vehicle details error:", err);

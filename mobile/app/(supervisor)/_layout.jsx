@@ -1,8 +1,7 @@
-import { Tabs, useRouter } from 'expo-router';
+import { Tabs } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 
 export default function SupervisorLayout() {
-  const router = useRouter();
   return (
     <Tabs screenOptions={{ headerShown: false }}>
       <Tabs.Screen
@@ -12,37 +11,35 @@ export default function SupervisorLayout() {
           tabBarIcon: ({ color }) => (
             <MaterialIcons name="dashboard" size={24} color={color} />
           ),
+          href: '/',
         }}
       />
       <Tabs.Screen
-        name="vehicles"
+        name="vehicles/index"
         options={{
           title: 'Vehicles',
           tabBarIcon: ({ color }) => (
             <MaterialIcons name="directions-car" size={24} color={color} />
           ),
+          href: '/vehicles',
         }}
-        listeners={() => ({
-          tabPress: (e) => {
-            e.preventDefault();
-            router.push('/vehicles');
-          },
-        })}
       />
       <Tabs.Screen
-        name="drivers"
+        name="drivers/index"
         options={{
           title: 'Drivers',
           tabBarIcon: ({ color }) => (
             <MaterialIcons name="people" size={24} color={color} />
           ),
+          href: '/drivers',
         }}
-        listeners={() => ({
-          tabPress: (e) => {
-            e.preventDefault();
-            router.push('/drivers');
-          },
-        })}
+      />
+      {/* Explicitly hide the vehicle-details route */}
+      <Tabs.Screen
+        name="vehicle-details/index"
+        options={{
+          href: null, // This will hide it from tabs
+        }}
       />
     </Tabs>
   );

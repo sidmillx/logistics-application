@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { Button, TextInput, Text, useTheme, ActivityIndicator } from 'react-native-paper';
+import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import API_BASE_URL from '../../config/api';
 
-const CheckInScreen = ({navigation}) => {
-
+const CheckInScreen = () => {
+  const router = useRouter();
   const theme = useTheme();
 
   const [assignedVehicle, setAssignedVehicle] = useState(null);
@@ -12,56 +14,73 @@ const CheckInScreen = ({navigation}) => {
   const [tripPurpose, setTripPurpose] = useState('');
   const [startOdometer, setStartOdometer] = useState('');
   const [startLocation, setStartLocation] = useState('');
-  const [error, setError] = useState('');
+  const [userInfo, setUserInfo] = useState(null);
 
-   useEffect(() => {
-    const fetchAssignedVehicle = async () => {
+  useEffect(() => {
+    const loadUserAndVehicle = async () => {
       try {
+        // Load user info from storage
+        const userStr = await AsyncStorage.getItem("user");
+        const user = JSON.parse(userStr);
+        setUserInfo(user);
+        console.log("Loaded user:", user);
+
         const res = await fetch(`${API_BASE_URL}/api/mobile/driver/assignment`);
         const data = await res.json();
+        console.log("Loaded assigned vehicle:", data);
 
         if (data.message === "No assignment found") {
           setAssignedVehicle(null);
         } else {
-          setAssignedVehicle(data); // should contain driverId, vehicleId, optionally vehicle info
+          setAssignedVehicle(data); // includes driverId and vehicleId
         }
       } catch (err) {
-        console.error("Assignment fetch error:", err);
-        setError("Failed to fetch assignment");
+        console.error("Error loading data:", err);
+        Alert.alert("Error", "Failed to load user or assignment");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchAssignedVehicle();
+    loadUserAndVehicle();
   }, []);
 
   const handleCheckIn = async () => {
-    
     if (!tripPurpose || !startOdometer || !startLocation) {
       Alert.alert("Missing Fields", "Please fill all fields before checking in.");
       return;
     }
+
+    if (!userInfo || !assignedVehicle) {
+      Alert.alert("Error", "Missing user or vehicle information.");
+      return;
+    }
+
     try {
+      const payload = {
+        vehicleId: assignedVehicle.vehicleId,
+        driverId: assignedVehicle.driverId,
+        performedById: userInfo.id,
+        performedByRole: userInfo.role, // "driver" or "supervisor"
+        startOdometer: parseInt(startOdometer),
+        startLocation,
+        tripPurpose
+      };
+
+      console.log("Check-in payload:", payload); // <== Debug log here
+
       const response = await fetch(`${API_BASE_URL}/api/mobile/driver/checkin`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          vehicleId: assignedVehicle.vehicleId,
-          driverId: assignedVehicle.driverId,
-          performedById: assignedVehicle.driverId,
-          performedByRole: "driver",
-          startOdometer: parseInt(startOdometer),
-          startLocation,
-          tripPurpose
-        })
+        body: JSON.stringify(payload)
       });
 
       if (response.ok) {
         const data = await response.json();
-        navigation.navigate("Dashboard");
+        console.log("Check-in successful:", data);
+        router.back();
       } else {
         const errData = await response.json();
         console.error("Check-in error:", errData);
@@ -73,9 +92,8 @@ const CheckInScreen = ({navigation}) => {
     }
   };
 
-
   return (
-     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Text variant="headlineSmall" style={styles.title}>Vehicle Check-in</Text>
       <Text variant="bodyMedium" style={styles.subtitle}>Enter trip details</Text>
 
@@ -127,7 +145,7 @@ const CheckInScreen = ({navigation}) => {
       <View style={styles.buttonContainer}>
         <Button
           mode="outlined"
-          onPress={() => navigation.goBack()}
+          onPress={() => router.back()}
           style={styles.button}
         >
           Cancel
@@ -144,7 +162,6 @@ const CheckInScreen = ({navigation}) => {
     </View>
   );
 };
-
 
 const styles = StyleSheet.create({
   container: {

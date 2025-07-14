@@ -2,18 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Alert, Platform } from 'react-native';
 import { Button, TextInput, Text, useTheme } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { getItemAsync } from 'expo-secure-store'; // Only for native
+import { getItemAsync } from 'expo-secure-store'; // Native secure storage
 import { jwtDecode } from 'jwt-decode';
 import API_BASE_URL from '../../config/api';
 
 const CheckOutScreen = () => {
   const theme = useTheme();
   const router = useRouter();
-  const { tripId, vehicleId } = useLocalSearchParams();
+  const { tripId, vehicleId, driverId: routeDriverId } = useLocalSearchParams();
 
   const [endOdometer, setEndOdometer] = useState('');
   const [endLocation, setEndLocation] = useState('');
-  const [driverId, setDriverId] = useState(null);
+  const [userInfo, setUserInfo] = useState(null);
 
   const getToken = async () => {
     if (Platform.OS === 'web') {
@@ -24,7 +24,7 @@ const CheckOutScreen = () => {
   };
 
   useEffect(() => {
-    const loadDriverId = async () => {
+    const loadUserInfo = async () => {
       try {
         const token = await getToken();
         if (!token) {
@@ -33,122 +33,63 @@ const CheckOutScreen = () => {
         }
 
         const decoded = jwtDecode(token);
-        setDriverId(decoded.id);
+        setUserInfo({ id: decoded.id, role: decoded.role });
       } catch (error) {
         console.error("Token decode error:", error);
-        Alert.alert("Auth Error", "Failed to get user identity.");
+        Alert.alert("Auth Error", "Failed to decode user info.");
       }
     };
 
-    loadDriverId();
+    loadUserInfo();
   }, []);
 
-  // const handleCheckOut = async () => {
-  //   if (!endOdometer || !endLocation) {
-  //     Alert.alert("Missing Fields", "Please fill all fields before checking out.");
-  //     return;
-  //   }
-
-  //   try {
-  //     const token = await getToken();
-  //     if (!token) {
-  //       Alert.alert("Auth Error", "No token found.");
-  //       return;
-  //     }
-
-  //     // const response = await fetch(`${API_BASE_URL}/api/mobile/driver/checkout`, {
-  //     const response = await fetch(`http://localhost:5000/api/mobile/driver/checkout`, {
-  //       method: "POST",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //         Authorization: `Bearer ${token}`,
-  //       },
-  //       body: JSON.stringify({
-  //         tripId,
-  //         vehicleId,
-  //         driverId,
-  //         performedById: driverId,
-  //         performedByRole: "driver",
-  //         endOdometer: parseInt(endOdometer),
-  //         endLocation,
-  //       }),
-  //     });
-
-  //     if (response.ok) {
-  //       await response.json();
-  //       router.push('/dashboard');
-  //     } else {
-  //       const errData = await response.text();
-  //       console.error("Check-out failed:", errData);
-  //       Alert.alert("Error", "Could not complete check-out.");
-  //     }
-  //   } catch (err) {
-  //     console.error("Checkout error:", err);
-  //     Alert.alert("Error", "Something went wrong.");
-  //   }
-  // };
-const handleCheckOut = async () => {
-  if (!endOdometer || !endLocation) {
-    Alert.alert("Missing Fields", "Please fill all fields before checking out.");
-    return;
-  }
-
-  try {
-    const token = await getToken();
-    if (!token) {
-      Alert.alert("Auth Error", "No token found.");
+  const handleCheckOut = async () => {
+    if (!endOdometer || !endLocation) {
+      Alert.alert("Missing Fields", "Please fill all fields before checking out.");
       return;
     }
 
-    const decoded = jwtDecode(token);
-    const role = decoded.role;
+    if (!userInfo || !tripId || !vehicleId) {
+      Alert.alert("Missing Info", "User, trip or vehicle ID is missing.");
+      return;
+    }
 
-    let url = '';
-    let body = {
+    const token = await getToken();
+    const isSupervisor = userInfo.role === "supervisor";
+
+    const body = {
       tripId,
       vehicleId,
+      driverId: isSupervisor ? routeDriverId : userInfo.id, // driver being checked out
+      performedById: userInfo.id,
+      performedByRole: userInfo.role,
       endOdometer: parseInt(endOdometer),
-      endLocation,
+      endLocation
     };
 
-    if (role === 'driver') {
-      url = `${API_BASE_URL}/api/mobile/driver/checkout`;
-      // performedById and performedByRole will be added server side as driver id from token
-    } else if (role === 'supervisor') {
-      url = `${API_BASE_URL}/api/mobile/supervisor/checkout`;
-      body = {
-        ...body,
-        driverId, // this should be selected or passed as prop (the driver to checkout)
-        performedByRole: 'supervisor',
-        performedById: decoded.id,
-      };
-    } else {
-      Alert.alert("Unauthorized", "You don't have permission to check out.");
-      return;
-    }
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/mobile/driver/checkout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(body)
+      });
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (response.ok) {
-      await response.json();
-      router.push('/dashboard');
-    } else {
-      const errData = await response.text();
-      console.error("Check-out failed:", errData);
-      Alert.alert("Error", "Could not complete check-out.");
+      if (response.ok) {
+        await response.json();
+        router.push('/dashboard');
+      } else {
+        const errText = await response.text();
+        console.error("Check-out failed:", errText);
+        Alert.alert("Error", "Could not complete check-out.");
+      }
+    } catch (err) {
+      console.error("Checkout error:", err);
+      Alert.alert("Error", "Something went wrong.");
     }
-  } catch (err) {
-    console.error("Checkout error:", err);
-    Alert.alert("Error", "Something went wrong.");
-  }
-};
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>

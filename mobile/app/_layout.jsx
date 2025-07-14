@@ -1,9 +1,10 @@
 import { Stack } from "expo-router";
 import { PaperProvider } from 'react-native-paper';
+import customTheme from '../config/theme';
 
 export default function RootLayout() {
   return (
-    <PaperProvider>
+    <PaperProvider theme={customTheme}>
       <Stack>
 
         {/* supervisor */}

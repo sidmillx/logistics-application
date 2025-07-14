@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, FlatList, Platform, Alert } from 'react-native'
 import { Card, Button, useTheme, ActivityIndicator } from 'react-native-paper';
 import { router } from 'expo-router';
 import { getItemAsync } from 'expo-secure-store';
-import API_BASE_URL from '../../config/api';
+import API_BASE_URL from '../../../config/api';
 
 export default function VehicleFleet() {
   const theme = useTheme();
@@ -44,6 +44,8 @@ export default function VehicleFleet() {
         }
 
         const data = await response.json();
+        console.log("🚗 Vehicles from API:", data);
+
         setVehicles(data);
       } catch (error) {
         console.error('Error fetching vehicles:', error);
@@ -72,37 +74,35 @@ export default function VehicleFleet() {
         data={vehicles}
         renderItem={({ item }) => (
           <Card style={styles.card}>
-            <Card.Content>
-              <Text variant="titleLarge" style={styles.vehicleId}>{item.id}</Text>
-              <Text variant="bodyMedium" style={styles.location}>
-                {item.driverName ? item.driverName : 'No driver assigned'}
-              </Text>
-              {item.driverName ? (
-                <Button
-                  mode="contained"
-                  onPress={() =>router.push({
-                   pathname: '/vehicle-details',
-                  params: {
-                    vehicleId: item.id,
-                    vehicleName: item.driverName,
-                  },
-                })}
+  <Card.Content>
+    <Text style={styles.plate}>Plate: {item.plate_number}</Text>
+    <Text style={styles.detail}>Make & Model: {item.make} {item.model}</Text>
+    <Text style={styles.detail}>Status: {item.status}</Text>
+    <Text style={styles.detail}>Driver: {item.driverName || 'No driver assigned'}</Text>
+    {/* <Text style={styles.detail}>Created: {new Date(item.created_at).toLocaleDateString()}</Text> */}
 
-                  style={styles.actionButton}
-                >
-                  View Details
-                </Button>
-              ) : (
-                <Button
-                  mode="outlined"
-                  onPress={() => router.push(`/assign-driver/${item.id}`)}
-                  style={styles.actionButton}
-                >
-                  Assign Driver
-                </Button>
-              )}
-            </Card.Content>
-          </Card>
+    <Button
+      mode={item.driverName ? 'contained' : 'outlined'}
+      onPress={() => {
+        if (item.driverName) {
+          router.push({
+            pathname: '/vehicle-details',
+            params: {
+              vehicleId: item.id,
+              vehicleName: item.driverName,
+            },
+          });
+        } else {
+          router.push(`/assign-driver/${item.id}`);
+        }
+      }}
+      style={styles.actionButton}
+    >
+      {item.driverName ? 'View Details' : 'Assign Driver'}
+    </Button>
+  </Card.Content>
+</Card>
+
         )}
         keyExtractor={(item, index) => index.toString()}
         contentContainerStyle={styles.listContent}
@@ -136,4 +136,14 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: 20,
   },
+  plate: {
+  fontWeight: 'bold',
+  fontSize: 16,
+  marginBottom: 4,
+},
+detail: {
+  fontSize: 14,
+  marginBottom: 2,
+  color: '#555',
+},
 });
