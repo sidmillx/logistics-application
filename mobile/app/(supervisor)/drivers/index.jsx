@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, FlatList, Alert, Platform } from 'react-native';
-import { Card, Text, useTheme, ActivityIndicator } from 'react-native-paper';
+import { Card, Text, useTheme, ActivityIndicator, Divider } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { getItemAsync } from 'expo-secure-store';
 import API_BASE_URL from '../../../config/api';
@@ -8,24 +8,23 @@ import API_BASE_URL from '../../../config/api';
 export default function DriversScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const [groupedDrivers, setGroupedDrivers] = useState({});
+  const [drivers, setDrivers] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchDrivers = async () => {
       try {
-       let token;
-      if (Platform.OS === 'web') {
-        // Use localStorage for web
-        token = localStorage.getItem('token');
-      } else {
-        // Use expo-secure-store for native platforms
-        token = await getItemAsync('token');
-      }
+        let token;
+        if (Platform.OS === 'web') {
+          token = localStorage.getItem('token');
+        } else {
+          token = await getItemAsync('token');
+        }
+
         const res = await fetch(`${API_BASE_URL}/api/mobile/supervisor/drivers`, {
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`, // optional if your endpoint needs auth
+            'Authorization': `Bearer ${token}`,
           },
         });
 
@@ -33,16 +32,8 @@ export default function DriversScreen() {
           throw new Error('Failed to fetch drivers');
         }
 
-        const drivers = await res.json();
-
-        const grouped = drivers.reduce((acc, driver) => {
-          const group = driver.group || 'Ungrouped';
-          if (!acc[group]) acc[group] = [];
-          acc[group].push(driver);
-          return acc;
-        }, {});
-
-        setGroupedDrivers(grouped);
+        const data = await res.json();
+        setDrivers(data);
       } catch (err) {
         console.error("Driver fetch error:", err);
         Alert.alert("Error", "Could not load drivers.");
@@ -68,21 +59,21 @@ export default function DriversScreen() {
       <Text variant="headlineSmall" style={styles.title}>Drivers</Text>
 
       <FlatList
-        data={Object.entries(groupedDrivers)}
-        renderItem={({ item: [group, drivers] }) => (
-          <Card style={styles.groupCard}>
+        data={drivers}
+        renderItem={({ item: driver }) => (
+          <Card style={styles.driverCard} mode="elevated">
             <Card.Content>
-              <Text variant="titleLarge" style={styles.groupTitle}>{group}</Text>
-              {drivers.map(driver => (
-                <View key={driver.id} style={styles.driverItem}>
-                  <Text variant="bodyLarge">{driver.name}</Text>
-                  <Text variant="bodyMedium" style={styles.tripsText}>{driver.trips || 'No trips'}</Text>
-                </View>
-              ))}
+              <Text style={styles.label}>Name:</Text>
+              <Text style={styles.value}>{driver.name}</Text>
+
+              <Divider style={styles.divider} />
+
+              <Text style={styles.label}>Trips:</Text>
+              <Text style={styles.value}>{driver.trips || 'No trips'}</Text>
             </Card.Content>
           </Card>
         )}
-        keyExtractor={([group]) => group}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
       />
     </View>
@@ -98,21 +89,24 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     fontWeight: 'bold',
   },
-  groupCard: {
+  driverCard: {
     marginBottom: 16,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    elevation: 2,
   },
-  groupTitle: {
+  label: {
     fontWeight: 'bold',
-    marginBottom: 8,
+    color: '#444',
+    fontSize: 14,
   },
-  driverItem: {
-    marginBottom: 12,
-    paddingLeft: 8,
-    borderLeftWidth: 2,
-    borderLeftColor: '#6200ee',
+  value: {
+    fontSize: 16,
+    marginBottom: 10,
+    color: '#222',
   },
-  tripsText: {
-    color: '#666',
+  divider: {
+    marginVertical: 4,
   },
   listContent: {
     paddingBottom: 20,

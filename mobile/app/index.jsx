@@ -7,8 +7,9 @@ import {
   Platform,
   KeyboardAvoidingView,
   ScrollView,
+  StatusBar,
 } from 'react-native';
-import { Button, TextInput, Text, useTheme, ActivityIndicator } from 'react-native-paper';
+import { Button, TextInput, Text, ActivityIndicator } from 'react-native-paper';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import API_BASE_URL from '../config/api';
@@ -18,51 +19,114 @@ const LoginScreen = () => {
   const [password, setPassword] = useState('');
   const [secureTextEntry, setSecureTextEntry] = useState(true);
   const [loading, setLoading] = useState(false);
-  const theme = useTheme();
+  const [errors, setErrors] = useState({
+    username: '',
+    password: '',
+  });
 
+  // Secure token storage
   const saveToken = async (key, value) => {
-    if (Platform.OS === 'web') {
-      localStorage.setItem(key, value);
-    } else {
-      await AsyncStorage.setItem(key, value);
+    try {
+      if (Platform.OS === 'web') {
+        localStorage.setItem(key, value);
+      } else {
+        await AsyncStorage.setItem(key, value);
+      }
+    } catch (error) {
+      console.error('Error saving token:', error);
+      throw new Error('Failed to save authentication data');
     }
   };
 
+  // Input validation
+  const validateInputs = () => {
+    const newErrors = {
+      username: !username ? 'Username is required' : '',
+      password: !password ? 'Password is required' : password.length < 6 ? 'Password must be at least 6 characters' : '',
+    };
+    setErrors(newErrors);
+    return !newErrors.username && !newErrors.password;
+  };
+
   const handleLogin = async () => {
+    if (!validateInputs()) return;
+
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ 
+          username: username.trim(), 
+          password 
+        }),
       });
 
-      const data = await res.json();
+      const data = await response.json();
 
-      if (!res.ok) {
-        Alert.alert('Login Failed', data.message || 'Invalid credentials');
-        return;
+      if (!response.ok) {
+        // Handle specific error cases
+        if (response.status === 401) {
+          throw new Error('Invalid username or password');
+        } else if (response.status === 500) {
+          throw new Error('Server error. Please try again later.');
+        } else {
+          throw new Error(data.message || 'Login failed');
+        }
       }
 
       if (!data?.token || !data?.user) {
-        throw new Error('Missing token or user info in response');
+        throw new Error('Invalid server response');
       }
 
-      await saveToken('token', data.token);
-      await saveToken('user', JSON.stringify(data.user));
+      // Save tokens securely
+      await Promise.all([
+        saveToken('token', data.token),
+        saveToken('user', JSON.stringify(data.user)),
+      ]);
 
-      const role = data.user.role;
-
-      if (role === 'driver') {
-        router.replace('/(driver)');
-      } else if (role === 'supervisor') {
-        router.replace('/(supervisor)');
-      } else {
-        Alert.alert('Unauthorized', 'Only drivers and supervisors can use the app.');
+      // Role-based navigation with additional checks
+      switch (data.user.role) {
+        case 'driver':
+          router.replace('/(driver)');
+          break;
+        case 'supervisor':
+          router.replace('/(supervisor)');
+          break;
+        default:
+          Alert.alert(
+            'Access Denied',
+            'Your account does not have access to this application.',
+            [
+              { text: 'OK', onPress: () => {
+                // Clear stored credentials if role is invalid
+                if (Platform.OS === 'web') {
+                  localStorage.removeItem('token');
+                  localStorage.removeItem('user');
+                } else {
+                  AsyncStorage.multiRemove(['token', 'user']);
+                }
+              }}
+            ]
+          );
       }
-    } catch (err) {
-      console.error('Login error:', err);
-      Alert.alert('Error', err.message || 'Something went wrong. Please try again.');
+    } catch (error) {
+      console.error('Login error:', error);
+      
+      // User-friendly error messages
+      let errorMessage = error.message;
+      if (error.message.includes('Network request failed')) {
+        errorMessage = 'Network error. Please check your connection.';
+      }
+
+      Alert.alert(
+        'Login Error',
+        errorMessage,
+        [{ text: 'OK' }]
+      );
     } finally {
       setLoading(false);
     }
@@ -70,17 +134,22 @@ const LoginScreen = () => {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
+      style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      <StatusBar 
+        barStyle="dark-content" 
+        backgroundColor="#fff" 
+      />
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.container}>
           <Image
             source={require('../assets/images/inyatsi-logo.png')}
             style={styles.logo}
+            resizeMode="contain"
           />
 
           <Text variant="headlineMedium" style={styles.welcomeText}>
@@ -98,7 +167,13 @@ const LoginScreen = () => {
             style={styles.input}
             mode="outlined"
             autoCapitalize="none"
+            autoCorrect={false}
+            error={!!errors.username}
+            disabled={loading}
           />
+          {errors.username ? (
+            <Text style={styles.errorText}>{errors.username}</Text>
+          ) : null}
 
           <TextInput
             label="Password"
@@ -108,20 +183,28 @@ const LoginScreen = () => {
             style={styles.input}
             mode="outlined"
             autoCapitalize="none"
+            error={!!errors.password}
+            disabled={loading}
             right={
               <TextInput.Icon
                 icon={secureTextEntry ? 'eye-off' : 'eye'}
                 onPress={() => setSecureTextEntry(!secureTextEntry)}
+                disabled={loading}
               />
             }
           />
+          {errors.password ? (
+            <Text style={styles.errorText}>{errors.password}</Text>
+          ) : null}
 
           <Button
             mode="contained"
             onPress={handleLogin}
             disabled={loading}
+            loading={loading}
             style={styles.loginButton}
-            icon={loading ? () => <ActivityIndicator size={18} color="white" /> : null}
+            contentStyle={styles.loginButtonContent}
+            labelStyle={styles.loginButtonLabel}
           >
             {loading ? 'Logging in...' : 'Login'}
           </Button>
@@ -132,13 +215,19 @@ const LoginScreen = () => {
 };
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
+    backgroundColor: '#fff',
   },
   container: {
     padding: 20,
     justifyContent: 'center',
+    backgroundColor: '#fff',
   },
   logo: {
     width: 150,
@@ -150,6 +239,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 10,
     fontWeight: 'bold',
+    color: '#333',
   },
   subtitle: {
     textAlign: 'center',
@@ -157,11 +247,25 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   input: {
-    marginBottom: 15,
+    marginBottom: 5,
+    backgroundColor: '#fff',
   },
   loginButton: {
-    marginTop: 10,
-    paddingVertical: 5,
+    marginTop: 20,
+    paddingVertical: 8,
+    borderRadius: 4,
+  },
+  loginButtonContent: {
+    height: 48,
+  },
+  loginButtonLabel: {
+    fontSize: 16,
+  },
+  errorText: {
+    color: 'red',
+    marginBottom: 10,
+    marginLeft: 5,
+    fontSize: 12,
   },
 });
 

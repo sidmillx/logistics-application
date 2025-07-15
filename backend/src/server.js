@@ -7,6 +7,7 @@ import cors from 'cors';
 import authRoutes from "./routes/auth.route.js";
 import adminRoutes from "./routes/admin.route.js";
 import mobileRoutes from "./routes/mobile.route.js";
+import uploadRoute from "./routes/upload.js";
 
 const app = express();
 
@@ -70,6 +71,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/mobile", mobileRoutes);
 app.use("/api/admin/reports", reportRoutes);
+app.use("/api/upload", uploadRoute);
 
 
 app.listen(PORT, () => {

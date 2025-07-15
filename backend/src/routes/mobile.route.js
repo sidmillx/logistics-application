@@ -69,23 +69,45 @@ router.get("/supervisor/vehicles", authenticate, async (req, res) => {
 });
 
 // src/routes/mobile.route.js
+// router.get("/supervisor/drivers", authenticate, async (req, res) => {
+//   try {
+//     const supervisorId = req.user?.id;
+
+//     if (!supervisorId) {
+//       return res.status(401).json({ error: "Unauthorized" });
+//     }
+
+//     console.log("Fetching drivers for supervisor:", supervisorId);
+
+//     const drivers = await db.execute(
+//       sql`
+//         SELECT u.id, u.fullname AS name, COUNT(t.id) AS trips
+//         FROM users u
+//         INNER JOIN supervisions s ON s.driver_id = u.id
+//         LEFT JOIN trips t ON t.driver_id = u.id
+//         WHERE s.supervisor_id = ${supervisorId} AND u.role = 'driver'
+//         GROUP BY u.id, u.fullname
+//         ORDER BY u.fullname ASC
+//       `
+//     );
+
+//     res.json(drivers.rows);
+//   } catch (err) {
+//     console.error("Failed to fetch drivers:", err);
+//     res.status(500).json({ error: "Failed to fetch drivers" });
+//   }
+// });
+
 router.get("/supervisor/drivers", authenticate, async (req, res) => {
   try {
-    const supervisorId = req.user?.id;
-
-    if (!supervisorId) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    console.log("Fetching drivers for supervisor:", supervisorId);
+    console.log("Fetching all drivers");
 
     const drivers = await db.execute(
       sql`
         SELECT u.id, u.fullname AS name, COUNT(t.id) AS trips
         FROM users u
-        INNER JOIN supervisions s ON s.driver_id = u.id
         LEFT JOIN trips t ON t.driver_id = u.id
-        WHERE s.supervisor_id = ${supervisorId} AND u.role = 'driver'
+        WHERE u.role = 'driver'
         GROUP BY u.id, u.fullname
         ORDER BY u.fullname ASC
       `
@@ -97,6 +119,7 @@ router.get("/supervisor/drivers", authenticate, async (req, res) => {
     res.status(500).json({ error: "Failed to fetch drivers" });
   }
 });
+
 
 router.get("/drivers", authenticate, async (req, res) => {
   try {
@@ -247,29 +270,42 @@ router.get("/supervisor/vehicles/:id/details", authenticate, authorize("supervis
     console.log("Fetching vehicle details for:", vehicleId);
 
     const result = await db.execute(sql`
-      SELECT 
-        v.id,
-        v.make,
-        v.model,
-        v.plate_number,
-        v.status,
-        u.fullname AS current_driver,
-        ci.checked_in_at,
-        ci.start_odometer
-      FROM vehicles v
-      LEFT JOIN assignments a ON a.vehicle_id = v.id
-      LEFT JOIN users u ON u.id = a.driver_id
-      LEFT JOIN LATERAL (
-          SELECT c.checked_in_at, c.start_odometer
-          FROM checkins c
-          WHERE c.vehicle_id = v.id
-          ORDER BY c.checked_in_at DESC
-          LIMIT 1
-      ) ci ON true
-      WHERE v.id = ${vehicleId}
-    `);
+  SELECT 
+    v.id,
+    v.make,
+    v.model,
+    v.plate_number,
+    v.status,
+    u.fullname AS current_driver,
+    a.driver_id,                           
+    ci.checked_in_at,
+    ci.start_odometer,
+    t.id AS trip_id
+  FROM vehicles v
+  LEFT JOIN assignments a ON a.vehicle_id = v.id
+  LEFT JOIN users u ON u.id = a.driver_id
+  LEFT JOIN LATERAL (
+      SELECT c.checked_in_at, c.start_odometer
+      FROM checkins c
+      WHERE c.vehicle_id = v.id
+      ORDER BY c.checked_in_at DESC
+      LIMIT 1
+  ) ci ON true
+  LEFT JOIN LATERAL (
+      SELECT t.id
+      FROM trips t
+      WHERE t.vehicle_id = v.id
+        AND t.driver_id = a.driver_id -- ✅ match assignment
+        AND t.check_out_time IS NULL
+      ORDER BY t.check_in_time DESC
+      LIMIT 1
+  ) t ON true
+  WHERE v.id = ${vehicleId}
+`);
 
-    console.log("Query result:", result.rows);
+
+
+    console.log("Query result for vehicle:", result.rows);
 
     const vehicle = result.rows[0];
 
@@ -277,21 +313,21 @@ router.get("/supervisor/vehicles/:id/details", authenticate, authorize("supervis
       return res.status(404).json({ error: "Vehicle not found" });
     }
 
-    res.json(vehicle);
+    res.json(vehicle); // ✅ Now includes driver_id
   } catch (err) {
-    console.error("❌ Failed to fetch vehicle details:", err); // <== this is key
+    console.error("❌ Failed to fetch vehicle details:", err);
     res.status(500).json({ error: "Failed to fetch vehicle details" });
   }
 });
 
 
 // ========== DRIVER ROUTES ==========
-// router.get("/driver/assignment", authorize("driver"), async (req, res) => {
 import { and } from "drizzle-orm";
 
 router.get("/driver/assignment", authenticate, async (req, res) => {
   try {
-    const driverId = req.user.id;
+    const driverId = req.query.driverId || req.user.id;
+    console.log(driverId);
 
     const result = await db
       .select({
@@ -308,7 +344,7 @@ router.get("/driver/assignment", authenticate, async (req, res) => {
       .limit(1);
 
     if (result.length === 0) {
-      return res.json({ message: "No assignment found" });
+      return res.json({ message: `No assignment found for driver: ${driverId}` });
     }
 
     res.json(result[0]);

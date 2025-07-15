@@ -1,4 +1,4 @@
-const environment = "development";
+const environment = "production";
 
 const API_BASE_URL =
   environment === 'production'

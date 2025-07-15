@@ -7,7 +7,6 @@ import API_BASE_URL from '../../../config/api';
 
 export default function VehicleDetails() {
   const { vehicleId, vehicleName } = useLocalSearchParams();
-  console.log(vehicleId, vehicleName);
   const theme = useTheme();
 
   const [vehicleDetails, setVehicleDetails] = useState(null);
@@ -24,8 +23,6 @@ export default function VehicleDetails() {
     const fetchVehicleDetails = async () => {
       try {
         const token = await getToken();
-        console.log("Token used:", token);
-        // console.log("Token:", token);
         const res = await fetch(`${API_BASE_URL}/api/mobile/supervisor/vehicles/${vehicleId}/details`, {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -40,7 +37,6 @@ export default function VehicleDetails() {
         }
 
         const data = await res.json();
-        console.log("Vehicle details fetched:", data);
         setVehicleDetails(data);
       } catch (err) {
         console.error("Fetch vehicle details error:", err);
@@ -56,23 +52,31 @@ export default function VehicleDetails() {
   }, [vehicleId]);
 
   const handleAction = (action) => {
-  let targetRoute = '';
+    let targetRoute = '';
 
-  if (action === 'checkin') targetRoute = `/check-in`;
-  else if (action === 'checkout') targetRoute = `/check-out`;
-  else if (action === 'fuel') targetRoute = `/log-fuel`;
+    if (action === 'checkin') targetRoute = `/check-in`;
+    else if (action === 'checkout') targetRoute = `/check-out`;
+    else if (action === 'fuel') targetRoute = `/log-fuel`;
 
-  router.push({
-    pathname: targetRoute,
-    params: {
+    const params = {
+      tripId: vehicleDetails?.trip_id || '',
       vehicleId,
       vehicleName,
       odometer: vehicleDetails?.current_odometer || '',
       currentDriver: vehicleDetails?.current_driver || '',
-    },
-  });
-};
+      driverId: vehicleDetails?.driver_id || '',
+      onSuccess: ""
+    };
+    
+    router.push({
+      pathname: targetRoute,
+      params,
+    });
+  };
 
+  // Determine if vehicle is checked in (based on your schema)
+  const isCheckedIn = vehicleDetails?.checked_in_at && !vehicleDetails?.check_out_time;
+  const hasCurrentTrip = !!vehicleDetails?.trip_id;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -99,16 +103,36 @@ export default function VehicleDetails() {
       )}
 
       <View style={styles.buttonContainer}>
-       <Button mode="contained" onPress={() => handleAction('checkin')} style={styles.button}>
-        Check-in
-      </Button>
-      <Button mode="outlined" onPress={() => handleAction('checkout')} style={styles.button}>
-        Check Out
-      </Button>
-      <Button mode="contained" onPress={() => handleAction('fuel')} style={styles.button}>
-        Log Fuel
-      </Button>
+        {/* Only show Check-in button if vehicle is not checked in */}
+        {!isCheckedIn && (
+          <Button 
+            mode="contained" 
+            onPress={() => handleAction('checkin')} 
+            style={styles.button}
+          >
+            Check-in
+          </Button>
+        )}
 
+        {/* Only show Check-out and Fuel buttons if vehicle is checked in */}
+        {isCheckedIn && (
+          <>
+            <Button 
+              mode="outlined" 
+              onPress={() => handleAction('checkout')} 
+              style={styles.button}
+            >
+              Check Out
+            </Button>
+            <Button 
+              mode="contained" 
+              onPress={() => handleAction('fuel')} 
+              style={styles.button}
+            >
+              Log Fuel
+            </Button>
+          </>
+        )}
       </View>
     </View>
   );

@@ -8,6 +8,7 @@ const TripLogs = () => {
   const [trips, setTrips] = useState([]);
   const [filteredTrips, setFilteredTrips] = useState([]);
   const [stats, setStats] = useState({ totalTrips: 0, avgDistance: 0, avgFuel: 0 });
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     const fetchTrips = async () => {
@@ -21,9 +22,10 @@ const TripLogs = () => {
           const hours = Math.floor(durMs / 3600000);
           const minutes = Math.floor((durMs % 3600000) / 60000);
           return {
+            ...trip,
             id: trip.id,
-            driverName: trip.driverName, // Changed from fullname to driverName
-            vehiclePlate: trip.vehiclePlate, // Using plate number instead of vehicleId
+            driverName: trip.driverName,
+            vehiclePlate: trip.vehiclePlate,
             startLocation: trip.locationStart,
             endLocation: trip.locationEnd,
             distance: dist,
@@ -54,16 +56,50 @@ const TripLogs = () => {
     const filtered = trips.filter(
       trip =>
         trip.driverName.toLowerCase().includes(keyword) ||
-        trip.vehiclePlate.toLowerCase().includes(keyword) || // Updated to vehiclePlate
+        trip.vehiclePlate.toLowerCase().includes(keyword) ||
         trip.startLocation.toLowerCase().includes(keyword) ||
         trip.endLocation.toLowerCase().includes(keyword)
     );
     setFilteredTrips(filtered);
   }, [search, trips]);
 
+  const handleDownload = async (receiptUrl, driverName, date) => {
+    if (!receiptUrl) {
+      alert("No receipt available for this trip");
+      return;
+    }
+
+    setDownloading(true);
+    try {
+      // Create a more descriptive filename
+      const fileName = `receipt_${driverName.replace(/\s+/g, '_')}_${date.replace(/\//g, '-')}.${receiptUrl.split('.').pop()}`;
+      
+      // Method 1: Direct download (works for most modern browsers)
+      const response = await fetch(receiptUrl);
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error("Download failed:", error);
+      // Fallback: Open in new tab if download fails
+      window.open(receiptUrl, '_blank');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const columns = [
     { key: "driverName", title: "Driver Name" },
-    { key: "vehiclePlate", title: "Vehicle Plate" }, // Updated column title
+    { key: "vehiclePlate", title: "Vehicle Plate" },
     { key: "startLocation", title: "Start Location" },
     { key: "endLocation", title: "End Location" },
     { key: "distance", title: "Distance", render: (cellData, row) => `${row.distance} km` },
@@ -75,14 +111,25 @@ const TripLogs = () => {
       title: "Receipt",
       render: (cellData, row) => (
         <button
-          title="Download Receipt"
-          style={{ background: "transparent", border: "none" }}
-          onClick={() => {
-            if (row.receiptUrl) window.open(row.receiptUrl, "_blank");
-            else alert("Receipt not available");
+          title={row.receiptUrl ? "Download Receipt" : "No receipt available"}
+          style={{ 
+            background: "transparent", 
+            border: "none",
+            cursor: row.receiptUrl ? "pointer" : "not-allowed",
+            opacity: row.receiptUrl ? 1 : 0.5
           }}
+          onClick={() => handleDownload(row.receiptUrl, row.driverName, row.date)}
+          disabled={!row.receiptUrl || downloading}
         >
-          <img src="/icons/download.svg" alt="Download" />
+          {downloading ? (
+            <span>Downloading...</span>
+          ) : (
+            <img 
+              src="/icons/download.svg" 
+              alt="Download" 
+              style={{ width: "20px", height: "20px" }} 
+            />
+          )}
         </button>
       )
     },
