@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Card from "../components/Card";
 import Table from "../components/Table";
 import API_BASE_URL from "../config/config";
+import { Route, Map, Fuel } from "lucide-react"; // Assuming you have these icons in lucide-react
 
 const TripLogs = () => {
   const [search, setSearch] = useState("");
@@ -140,9 +141,9 @@ const TripLogs = () => {
       <h1>Trip Logs</h1>
 
       <div style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>
-        <Card title="Total Trips" value={stats.totalTrips} />
-        <Card title="Average Trip Distance" value={`${stats.avgDistance} KM`} />
-        <Card title="Average Fuel per Trip" value={`E ${stats.avgFuel}`} />
+        <Card title="Total Trips" value={stats.totalTrips} icon={<Route />}/>
+        <Card title="Average Trip Distance" value={`${stats.avgDistance} KM`} icon={<Map/>}/>
+        <Card title="Average Fuel per Trip" value={`E ${stats.avgFuel}`} icon={<Fuel />}/>
       </div>
 
       <div style={{ display: "flex", gap: "12px", marginBottom: "20px" }}>

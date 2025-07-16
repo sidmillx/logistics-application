@@ -6,6 +6,7 @@ import { trips, fuelLogs, drivers, vehicles, usersTable } from "../db/schema.js"
 import { eq, sql } from "drizzle-orm";
 import { applyFilters, sendPDF, sendCSV } from "../utils/reportsFunctions.js";
 import { format } from 'date-fns';
+import { exportFullReport } from '../controllers/exportController.js';
 
 // Utility function to format dates consistently
 const formatDate = (date) => {
@@ -377,4 +378,6 @@ async function getVehicleReportRows(filters) {
   return await query;
 }
 
+
+router.get('/export-full-excel', exportFullReport);
 export default router;

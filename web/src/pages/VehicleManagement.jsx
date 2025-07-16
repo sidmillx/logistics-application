@@ -4,6 +4,9 @@ import { useState, useEffect } from "react";
 import API_BASE_URL from "../config/config";
 import Swal from 'sweetalert2';
 import { toast } from 'react-toastify';
+import { Truck, Car, Activity, Fuel, Edit, Trash2 } from "lucide-react";
+import styles from '../styles/buttonStyles.module.css';
+import bstyles from '../styles/badgeStyles.module.css';
 
 const VehicleManagement = () => {
   const [vehicles, setVehicles] = useState([]);
@@ -16,6 +19,8 @@ const VehicleManagement = () => {
   });
   const [showModal, setShowModal] = useState(false);
   const [editVehicle, setEditVehicle] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
 
   useEffect(() => {
     fetchData();
@@ -23,11 +28,14 @@ const VehicleManagement = () => {
   }, []);
 
   const fetchData = async () => {
+    setLoading(true);
     try {
       const [vehiclesRes, summaryRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/admin/vehicles`),
         fetch(`${API_BASE_URL}/api/admin/vehicles/summary`),
       ]);
+      if (!vehiclesRes.ok || !summaryRes.ok) throw new Error('Failed to fetch');
+
       const vehiclesData = await vehiclesRes.json();
       const summaryData = await summaryRes.json();
 
@@ -35,6 +43,9 @@ const VehicleManagement = () => {
       setSummary(summaryData);
     } catch (err) {
       console.error("Failed to fetch vehicle data:", err);
+      toast.error("Failed to load vehicle data");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -45,9 +56,11 @@ const VehicleManagement = () => {
       setEntities(data);
     } catch (err) {
       console.error("Failed to fetch entities:", err);
+      toast.error("Failed to load entities");
     }
   };
 
+  // Single delete
   const handleDelete = async (id) => {
     const result = await Swal.fire({
       title: 'Are you sure?',
@@ -69,10 +82,43 @@ const VehicleManagement = () => {
       if (!res.ok) throw new Error('Failed to delete');
 
       setVehicles((prev) => prev.filter((v) => v.id !== id));
+      setSelectedIds((prev) => prev.filter((sid) => sid !== id)); // Remove from selected if needed
       toast.success('Vehicle deleted successfully');
     } catch (err) {
       console.error('Delete failed:', err);
       toast.error('Error deleting vehicle');
+    }
+  };
+
+  // Bulk delete selected
+  const handleDeleteSelected = async (ids) => {
+    const result = await Swal.fire({
+      title: `Delete ${ids.length} selected vehicles?`,
+      text: 'This action cannot be undone.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete them!',
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/admin/vehicles/bulk-delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+
+      if (!res.ok) throw new Error("Bulk delete failed");
+
+      setVehicles((prev) => prev.filter((v) => !ids.includes(v.id)));
+      setSelectedIds([]);
+      toast.success(`${ids.length} vehicles deleted`);
+    } catch (err) {
+      console.error("Bulk delete failed:", err);
+      toast.error("Failed to delete selected vehicles");
     }
   };
 
@@ -124,18 +170,14 @@ const VehicleManagement = () => {
       'maintenance': 'Maintenance'
     };
 
-    const statusColor = {
-      'available': '#4CAF50',
-      'in-use': '#2196F3',
-      'maintenance': '#FF9800'
+    const statusClass = {
+      'available': bstyles.available,
+      'in-use': bstyles.inUse,
+      'maintenance': bstyles.maintenance
     };
 
     return (
-      <span style={{ 
-        color: statusColor[status] || '#000',
-        fontWeight: 500,
-        textTransform: 'capitalize'
-      }}>
+      <span className={`${bstyles.badge} ${statusClass[status] || ''}`}>
         {statusMap[status] || status}
       </span>
     );
@@ -145,13 +187,13 @@ const VehicleManagement = () => {
     { key: "plateNumber", title: "Plate Number" },
     { key: "make", title: "Make" },
     { key: "model", title: "Model" },
-    { 
-      key: "status", 
+    {
+      key: "status",
       title: "Status",
       render: (cellData, row) => formatStatus(row.status)
     },
-    { 
-      key: "createdAt", 
+    {
+      key: "createdAt",
       title: "Added On",
       render: (cellData, row) => formatDate(row.createdAt)
     },
@@ -160,14 +202,17 @@ const VehicleManagement = () => {
       title: "Actions",
       render: (cellData, row) => (
         <div style={{ display: "flex" }}>
-          <button onClick={() => handleEditClick(row)} style={{ marginRight: "15px", border: "none", background: "transparent", cursor: "pointer" }}>
-            <img src="/icons/edit.svg" alt="edit" />
+          <button
+            onClick={() => handleEditClick(row)}
+            className={`${styles.button} ${styles.editButton}`}
+          >
+            <Edit className={styles.editIcon} />
           </button>
           <button
             onClick={() => handleDelete(row.id)}
-            style={{ border: "none", background: "transparent", cursor: "pointer" }}
+            className={`${styles.button} ${styles.deleteButton}`}
           >
-            <img src="/icons/delete.svg" alt="delete" />
+            <Trash2 className={styles.deleteIcon} />
           </button>
         </div>
       )
@@ -176,27 +221,62 @@ const VehicleManagement = () => {
 
   return (
     <div>
-      <h1>Vehicle Management</h1>
+      <h1 style={{ fontSize: "30px", color: "rgb(17 24 39)" }}>Vehicle Management</h1>
       <div style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>
-        <Card title="Total Vehicles" value={summary.totalVehicles} icon={<img src="/icons/truck.svg" alt="truck" />} />
-        <Card title="Total Available Vehicles" value={summary.available} icon={<img src="/icons/car_directions.svg" alt="available" />} />
-        <Card title="Total Vehicles in Use" value={summary.inUse} icon={<img src="/icons/traffic.svg" alt="in use" />} />
-        <Card title="Fuel Logged Today" value={summary.fuelLoggedToday} icon={<img src="/icons/fuel.svg" alt="fuel" />} />
+        <Card title="Total Vehicles" value={summary.totalVehicles} icon={<Truck style={{ color: "#16a34a" }} />} />
+        <Card title="Total Available Vehicles" value={summary.available} icon={<Car style={{ color: "#2563eb" }} />} />
+        <Card title="Total Vehicles in Use" value={summary.inUse} icon={<Activity style={{ color: "ea580c" }} />} />
+        <Card title="Fuel Logged Today" value={summary.fuelLoggedToday} icon={<Fuel style={{ color: "#16a34a" }} />} />
       </div>
 
-      <div style={{ background: "#fff", padding: "16px", borderRadius: "8px", boxShadow: "0 2px 3px rgba(0,0,0,0.2)", marginTop: "50px", border: "solid 1px #ccc" }}>
+      <div style={{
+        background: "#fff",
+        padding: "16px",
+        borderRadius: "8px",
+        boxShadow: "0 2px 3px rgba(0,0,0,0.2)",
+        marginTop: "50px",
+        border: "solid 1px #ccc"
+      }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
           <h3>Manage Vehicles</h3>
-          <button onClick={() => { setEditVehicle({ plateNumber: "", make: "", model: "", status: "available", entityId: "" }); setShowModal(true); }}
-            style={{ padding: "12px 16px", backgroundColor: "#1976d2", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "500" }}>
+          <button
+            onClick={() => {
+              setEditVehicle({ plateNumber: "", make: "", model: "", status: "available", entityId: "" });
+              setShowModal(true);
+            }}
+            style={{ padding: "12px 16px", backgroundColor: "#1976d2", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "500" }}
+          >
             + Add Vehicle
           </button>
         </div>
-        <Table columns={columns} data={vehicles} />
+
+        <Table
+          columns={columns}
+          data={vehicles}
+          loading={loading}
+          selectable={true}
+          searchable={true}
+          sortable={true}
+          pagination={true}
+          onSelectionChange={setSelectedIds}
+          onDeleteSelected={handleDeleteSelected}
+          rowsPerPage={10}
+        />
       </div>
 
       {showModal && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(0,0,0,0.4)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 999
+        }}>
           <form onSubmit={handleFormSubmit} style={{ background: "#fff", padding: 24, borderRadius: 8, minWidth: 300, boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }}>
             <h3 style={{ marginBottom: 16 }}>{editVehicle?.id ? "Edit Vehicle" : "Add New Vehicle"}</h3>
             <input type="text" name="plateNumber" placeholder="Plate Number" required value={editVehicle?.plateNumber || ""} onChange={handleChange} style={{ width: "100%", padding: 8, marginBottom: 12 }} />

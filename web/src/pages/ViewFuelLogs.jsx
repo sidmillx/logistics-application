@@ -3,6 +3,7 @@ import Card from "../components/Card";
 import Table from "../components/Table";
 import { useParams, Link } from "react-router-dom";
 import API_BASE_URL  from "../config/config";
+import { Banknote, Fuel, Truck } from "lucide-react";
 
 const ViewFuelLogs = () => {
   const { id } = useParams();
@@ -51,9 +52,9 @@ const ViewFuelLogs = () => {
       <h1>Fuel Logs</h1>
 
       <div className="cards" style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>
-        <Card title="Total Litres Used" value={`${summary.totalLitres.toFixed(2)} L`} icon={<img src="/icons/fuel.svg" alt="${1:/capitalize}" />} />
-        <Card title="Total Cost" value={`E${summary.totalCost.toFixed(2)}`} icon={<img src="/icons/chart.svg" alt="${1:/capitalize}" />} />
-        <Card title="Vehicle" value={vehicle?.plateNumber || "..."} icon={<img src="/icons/chart.svg" alt="${1:/capitalize}" />} />
+        <Card title="Total Litres Used" value={`${summary.totalLitres.toFixed(2)} L`} icon={<Fuel />} />
+        <Card title="Total Cost" value={`E${summary.totalCost.toFixed(2)}`} icon={<Banknote/>} />
+        <Card title="Vehicle" value={vehicle?.plateNumber || "..."} icon={<Truck />} />
       </div>
 
       <div className="table-container">

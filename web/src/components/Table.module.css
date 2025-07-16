@@ -2,6 +2,8 @@
   width: 100%;
   border-collapse: collapse;
   margin-bottom: 1rem;
+  overflow-x: auto;
+  font-size: 14px;
 }
 
 .custom-table th, 
@@ -9,11 +11,14 @@
   border-top: 1px solid #eee;
   border-bottom: 1px solid #eee;
   padding: 12px 8px;
+  color: rgb(55 65 81);  /* text-gray-700 */
 }
 
 .custom-table th {
   background: #f4f4f4;
   text-align: left;
+  font-weight: 600;      /* font-semibold */
+  color: rgb(17 24 39);  /* text-gray-900 */
 }
 
 .custom-table tr:hover {
@@ -49,4 +54,88 @@
 .pageInfo {
   font-size: 0.9rem;
   color: #666;
+}
+
+.searchContainer {
+  margin-left: auto; /* push to right */
+  width: 300px; /* fixed width so it never changes size */
+  text-align: right;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.message {
+  text-align: center;
+  padding: 20px;
+  font-size: 16px;
+  color: #777;
+}
+
+.bulkDropdownContainer {
+  flex-shrink: 0;
+  width: 180px; /* fixed width */
+}
+
+.bulkDropdown {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+  background-color: #fff;
+  cursor: pointer;
+}
+/* Container for bulk dropdown + search input side-by-side */
+.topControls {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 12px;
+}
+
+
+/* Header title + icon inline */
+.headerContent {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Dim inactive sort icon */
+.inactiveSortIcon {
+  color: #bbb;
+}
+
+/* Bulk action bar styles - not currently used but kept for reference */
+.bulkBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 10px 16px;
+  border: 1px solid #f5c6cb;
+  margin-bottom: 10px;
+  border-radius: 6px;
+}
+
+.deleteButton {
+  background-color: #dc3545;
+  color: white;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.deleteButton:hover {
+  background-color: #c82333;
 }

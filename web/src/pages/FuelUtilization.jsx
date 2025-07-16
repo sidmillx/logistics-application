@@ -5,6 +5,7 @@ import Table from "../components/Table";
 import FilterButtons from "../components/FilterButtons";
 import { Link } from "react-router-dom";
 import API_BASE_URL from "../config/config";
+import { Fuel, Banknote } from "lucide-react"; // Assuming you have these icons in lucide-react
 
 const FuelUtilization = () => {
   const [filter, setFilter] = useState("litres");
@@ -44,10 +45,10 @@ const FuelUtilization = () => {
     <div>
       <h1>Fuel Utilization</h1>
       <div className="cards" style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>
-        <Card title="Total Litres Consumed" value={`${summary.totalLitres} L`} icon={<img src="/icons/fuel.svg" />} />
-        <Card title="AVG Litres / Trip" value={`${summary.avgLitresPerTrip} L`} icon={<img src="/icons/fuel.svg" />} />
-        <Card title="Total Fuel Cost" value={`E${summary.totalCost}`} icon={<img src="/icons/chart.svg"/>} />
-        <Card title="AVG Cost / Km" value={`E${summary.avgCostPerKm}`} icon={<img src="/icons/chart.svg" />} />
+        <Card title="Total Litres Consumed" value={`${summary.totalLitres} L`} icon={<Fuel />} />
+        <Card title="AVG Litres / Trip" value={`${summary.avgLitresPerTrip} L`} icon={<Fuel />} />
+        <Card title="Total Fuel Cost" value={`E${summary.totalCost}`} icon={<Banknote />} />
+        <Card title="AVG Cost / Km" value={`E${summary.avgCostPerKm}`} icon={<Banknote />} />
       </div>
 
        <div

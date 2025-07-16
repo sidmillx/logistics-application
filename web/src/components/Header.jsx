@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import './Header.module.css';
 import { useNavigate } from "react-router-dom";
+import { CircleUser, ChevronDown, LogOut, Settings } from "lucide-react"; // Assuming you have a CircleUser icon in lucide-react
 
 
 const Header = () => {
@@ -39,10 +40,10 @@ const Header = () => {
         justifyContent: "flex-end",
         marginRight: "10px",
         borderBottom: "1px solid #ccc",
-        padding: "10px",
+        padding: "10px 20px 10px 10px",
         backgroundColor: "#fff",
         position: "fixed",
-        width: "calc(100% - 250px)",
+        width: "calc(100% - 280px)",
         zIndex: 1000
       }}
     >
@@ -55,16 +56,18 @@ const Header = () => {
         <div className="header__info">
           <div className="header__role" style={{ marginRight: "10px" }}>Admin</div>
         </div>
-        <img src="/icons/account_circle.svg" alt="Profile icon" style={{ width: "30px" }} />
-        <img src="/icons/arrow_drop_down.svg" alt="Dropdown icon" style={{ width: "30px", marginRight: "10px" }} />
+        {/* <img src="/icons/account_circle.svg" alt="Profile icon" style={{ width: "30px" }} /> */}
+        <CircleUser />
+        {/* <img src="/icons/arrow_drop_down.svg" alt="Dropdown icon" style={{ width: "30px", marginRight: "10px" }} /> */}
+        <ChevronDown />
 
         {dropdownOpen && (
           <div
             className="dropdown"
             style={{
               position: "absolute",
-              top: "45px",
-              right: "15px",
+              top: "40px",
+              right: "0",
               backgroundColor: "#fff",
               border: "1px solid #ccc",
               borderRadius: "6px",
@@ -83,7 +86,10 @@ const Header = () => {
               onClick={() => navigate("/settings")}
 
             >
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <Settings />
               Settings
+              </div>
             </div>
             <div
               style={{
@@ -93,7 +99,10 @@ const Header = () => {
               }}
               onClick={handleLogout}
             >
-              Logout
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <LogOut />
+                Logout
+              </div>
             </div>
           </div>
         )}

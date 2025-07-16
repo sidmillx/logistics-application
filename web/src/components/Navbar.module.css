@@ -6,7 +6,7 @@
   height: 100vh;           /* Full height */
   width: 250px;            /* Adjust width as needed */
   background-color: #00204D; /* Dark background */
-  padding-top: 20px;
+  /* padding-top: 20px; */
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
@@ -15,11 +15,64 @@
 }
 
 /* Style the logo name section */
-.logoName {
+/* .logoName {
   color: #fff;
   text-align: center;
-  margin-bottom: 20px; /* Add some space below the logo */
+  margin-bottom: 20px; 
+} */
+
+.icon {
+  width: 20px;
+  height: 20px;
 }
+
+.navText {
+  font-size: 14px;
+}
+
+.sectionNav {
+  margin-top: 20px; /* Add space above the section */
+  padding: 0 10px; /* Add padding for better spacing */
+}
+
+.sectionTitle {
+  font-size: 0.75rem; /* 12px - equivalent to text-xs */
+  font-weight: 600;   /* equivalent to font-semibold */
+  color: rgba(255, 255, 255, 0.6); /* equivalent to text-white/60 */
+  text-transform: uppercase;
+  letter-spacing: 0.05em; /* equivalent to tracking-wider */
+  margin-bottom: 0.75rem; /* 12px - equivalent to mb-3 */
+  padding-left: 0.5rem; /* 8px - equivalent to px-2 */
+  padding-right: 0.5rem; /* 8px - equivalent to px-2 */
+}
+
+/* LGOG */
+.header-container {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1); /* border-b border-white/10 */
+  padding: 10px; 
+}
+
+.header-content {
+  display: flex; /* flex */
+  align-items: center; /* items-center */
+  gap: 0.75rem; /* gap-3 (3 * 0.25rem = 0.75rem) */
+}
+
+
+
+.header-logo {
+  width: 80px;
+  height: 90px;
+  filter: brightness(0) invert(1); /* brightness-0 invert */
+  margin: 0 auto;
+}
+
+.header-title {
+  font-size: 1.25rem; /* text-xl */
+  font-weight: 700; /* font-bold */
+  color: white; /* text-white */
+}
+/* END LOGO */
 
 /* Remove default list styling */
 .ul {
@@ -56,9 +109,66 @@ a:hover {
   margin-right: 12px;
 }
 
-/* Make all images white */
-.nav img {
-  filter: brightness(0) invert(1);
-  width: 20px;
-  height: 20px;
+
+
+/* VALUES SECTION */
+.values-container {
+  border-top: 1px solid rgba(255, 255, 255, 0.1); /* border-t border-white/10 */
+  padding: 5px;
 }
+
+.values-content {
+  text-align: center; /* text-center */
+}
+
+.values-image {
+  width: 100px;
+  height: 100px;
+  margin: 0 auto 0.5rem;
+  opacity: 0.8;
+}
+
+
+.values-text {
+  font-size: 0.75rem; /* text-xs (12px) */
+  color: rgba(255, 255, 255, 0.7); /* text-white/70 */
+  font-weight: 500; /* font-medium */
+}
+
+
+/* Link Styles */
+.normalLink {
+  display: flex;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.8);
+  text-decoration: none;
+  padding: 10px 8px;
+  margin: 0 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.normalLink:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: white;
+  transform: translateX(4px);
+}
+
+.activeLink {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  font-weight: 500;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 
+              0 2px 4px -2px rgba(0, 0, 0, 0.1);
+}
+
+.activeLink .icon {
+  color: #38bdf8; /* Light blue for active icons */
+}
+
+/* .span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+} */

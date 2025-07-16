@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import Card from "../components/Card";
 import Table from "../components/Table";
 import API_BASE_URL from "../config/config";
+import { Route, Clock, Map, Gauge } from "lucide-react"; // Assuming you have these icons in lucide-react
 
 const DriverDetails = () => {
   const { id } = useParams();
@@ -170,18 +171,22 @@ const DriverDetails = () => {
         <Card 
           title="Total Trips" 
           value={driver.totalTrips ? driver.totalTrips.toString() : 'N/A'} 
+          icon={<Route />}
         />
         <Card 
           title="Hours Logged" 
           value={driver.hoursLogged ? driver.hoursLogged.toString() : 'N/A'} 
+          icon={<Clock />}
         />
         <Card 
           title="Total Distance" 
           value={formatStat(driver.totalDistance, true)} 
+          icon={<Map />}
         />
         <Card 
           title="Avg. Distance" 
           value={formatStat(driver.avgDistance, true)} 
+          icon={<Gauge />}
         />
       </div>
 

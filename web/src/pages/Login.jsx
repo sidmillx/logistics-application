@@ -47,8 +47,16 @@ const Login = () => {
   return (
     <div style={styles.page}>
       <div style={styles.container}>
-        <h3 className="mb-3">Login</h3>
-        <p style={{ marginBottom: 20 }}>Please enter your credentials.</p>
+        <div>
+          <img
+            src="/icons/Inyatsi Logo.png"
+            alt="Logo"
+            style={{ width: 120,marginBottom: 5 }}
+          />
+        </div>
+
+        <h3 className="mb-3">ADMIN LOGIN</h3>
+        <p style={{ marginBottom: 20, color: "rgb(75 85 99)" }}>Please enter your credentials.</p>
 
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: 16 }}>
@@ -115,7 +123,7 @@ const styles = {
     textAlign: "center",
   },
   input: {
-    width: "100%",
+    width: "92%",
     padding: 12,
     borderRadius: 6,
     border: "1px solid #ccc",

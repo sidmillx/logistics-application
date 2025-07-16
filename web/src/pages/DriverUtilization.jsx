@@ -5,6 +5,7 @@ import Table from "../components/Table";
 import FilterButtons from "../components/FilterButtons";
 import { Link } from "react-router-dom";
 import API_BASE_URL from "../config/config";
+import { Route, Users, BarChart3 } from "lucide-react"; // Assuming you have these icons in lucide-react
 
 const DriverUtilization = () => {
   const [filter, setFilter] = useState("trips");
@@ -68,9 +69,9 @@ const DriverUtilization = () => {
     <div>
       <h1>Driver Utilization</h1>
       <div style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>
-        <Card title="Total Drivers" value={summary.totalActiveDrivers.toString()} icon={<img src="/icons/account_circle.svg" alt="" />} />
-        <Card title="Total Trips" value={summary.totalTrips.toString()} icon={<img src="/icons/location.svg" alt="" />} />
-        <Card title="AVG Trips per driver" value={summary.avgTripsPerDriver} icon={<img src="/icons/chart.svg" alt="" />} />
+        <Card title="Total Drivers" value={summary.totalActiveDrivers.toString()} icon={<Users />} />
+        <Card title="Total Trips" value={summary.totalTrips.toString()} icon={<Route />} />
+        <Card title="AVG Trips per driver" value={summary.avgTripsPerDriver} icon={<BarChart3  />} />
       </div>
 
       <div style={{ background: "#fff", padding: "16px", borderRadius: "8px", marginBottom: "20px", border: "1px solid #ccc" }}>

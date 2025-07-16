@@ -3,6 +3,9 @@ import Card from "../components/Card";
 import Table from "../components/Table";
 import API_BASE_URL from "../config/config";
 import { toast } from "react-toastify";
+import { Edit, Trash2 } from "lucide-react";
+import styles from '../styles/buttonStyles.module.css';
+import { Building2, Truck, CheckCircle } from "lucide-react";
 
 const Entities = () => {
   const [summary, setSummary] = useState({ totalEntities: 0, totalVehicles: 0, availableVehicles: 0 });
@@ -17,13 +20,18 @@ const Entities = () => {
     description: "",
   });
 
+  const [selectedIds, setSelectedIds] = useState([]);
+
   // Fetch summary and entity data
   const fetchData = async () => {
+    setLoading(true);
     try {
       const [summaryRes, entityStatsRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/admin/summary`),
         fetch(`${API_BASE_URL}/api/admin/entities/overview`)
       ]);
+
+      if (!summaryRes.ok || !entityStatsRes.ok) throw new Error('Failed to fetch');
 
       const summaryData = await summaryRes.json();
       const entityStats = await entityStatsRes.json();
@@ -32,6 +40,7 @@ const Entities = () => {
       setTableData(entityStats.entitySummaries);
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);
+      toast.error("Failed to load entities data");
     } finally {
       setLoading(false);
     }
@@ -53,6 +62,8 @@ const Entities = () => {
 
       toast.success("Entity deleted successfully");
       setTableData(prev => prev.filter(e => e.id !== id));
+      setSelectedIds(prev => prev.filter(sid => sid !== id));
+
       // Refresh summary
       const summaryRes = await fetch(`${API_BASE_URL}/api/admin/summary`);
       const summaryData = await summaryRes.json();
@@ -60,6 +71,34 @@ const Entities = () => {
     } catch (err) {
       console.error("Error deleting entity:", err);
       toast.error("Failed to delete entity");
+    }
+  };
+
+  const handleDeleteSelected = async (ids) => {
+    if (ids.length === 0) return;
+
+    if (!window.confirm(`Delete ${ids.length} selected entities? This cannot be undone.`)) return;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/admin/entities/bulk-delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+
+      if (!res.ok) throw new Error("Bulk delete failed");
+
+      toast.success(`${ids.length} entities deleted`);
+      setTableData(prev => prev.filter(e => !ids.includes(e.id)));
+      setSelectedIds([]);
+
+      // Refresh summary
+      const summaryRes = await fetch(`${API_BASE_URL}/api/admin/summary`);
+      const summaryData = await summaryRes.json();
+      setSummary(summaryData);
+    } catch (err) {
+      console.error("Bulk delete error:", err);
+      toast.error("Failed to delete selected entities");
     }
   };
 
@@ -132,15 +171,15 @@ const Entities = () => {
         <div style={{ display: "flex", gap: "12px" }}>
           <button
             onClick={() => openEditModal(row)}
-            style={{ border: "none", background: "transparent", cursor: "pointer" }}
+            className={`${styles.button} ${styles.editButton}`}
           >
-            <img src="/icons/edit.svg" alt="edit icon" />
+            <Edit className={styles.editIcon}/>
           </button>
           <button
             onClick={() => handleDelete(row.id)}
-            style={{ border: "none", background: "transparent", cursor: "pointer" }}
+            className={`${styles.button} ${styles.deleteButton}`}
           >
-            <img src="/icons/delete.svg" alt="delete icon" />
+            <Trash2 className={styles.deleteIcon}/>
           </button>
         </div>
       ),
@@ -156,9 +195,9 @@ const Entities = () => {
       ) : (
         <>
           <div style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>
-            <Card title="Total Entities" value={summary.totalEntities} />
-            <Card title="Total Vehicles Across Entities" value={summary.totalVehicles} />
-            <Card title="Vehicles Available" value={summary.availableVehicles} />
+            <Card title="Total Entities" value={summary.totalEntities} icon={<Building2 style={{ color: '#2563eb' }} />}/>
+            <Card title="Total Vehicles Across Entities" value={summary.totalVehicles} icon={<Truck style={{ color: "#16a34a" }} />}/>
+            <Card title="Vehicles Available" value={summary.availableVehicles} icon={<CheckCircle style={{ color: "#ea580c" }} />}/>
           </div>
 
           <div
@@ -179,24 +218,46 @@ const Entities = () => {
               }}
             >
               <h3>Manage Entities</h3>
-              <button
-                onClick={openAddModal}
-                style={{
-                  padding: "12px 16px",
-                  backgroundColor: "#1976d2",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "8px",
-                  cursor: "pointer",
-                  fontWeight: "500",
-                }}
-              >
-                + Add Entity
-              </button>
+              <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                {selectedIds.length > 0 && (
+                  <button
+                    onClick={() => handleDeleteSelected(selectedIds)}
+                    className={`${styles.button} ${styles.deleteButton}`}
+                    style={{ padding: "8px 16px" }}
+                  >
+                    Delete Selected ({selectedIds.length})
+                  </button>
+                )}
+                <button
+                  onClick={openAddModal}
+                  style={{
+                    padding: "12px 16px",
+                    backgroundColor: "#1976d2",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                    fontWeight: "500",
+                  }}
+                >
+                  + Add Entity
+                </button>
+              </div>
             </div>
 
             {tableData.length > 0 ? (
-              <Table columns={columns} data={tableData} />
+              <Table
+                columns={columns}
+                data={tableData}
+                loading={loading}
+                selectable={true}
+                searchable={true}
+                sortable={true}
+                pagination={true}
+                onSelectionChange={setSelectedIds}
+                rowsPerPage={10}
+                selectedRows={selectedIds}
+              />
             ) : (
               <p style={{ fontStyle: "italic", color: "#888" }}>No entities to display.</p>
             )}

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import Card from "../components/Card";
 import CustomBarChart from "../components/BarChart";
 import API_BASE_URL from "../config/config";
+import { MapPin, Award, Car, Fuel, Banknote } from "lucide-react";
 
 const Dashboard = () => {
   const [summary, setSummary] = useState({});
@@ -34,9 +35,9 @@ const Dashboard = () => {
 
       {/* Top Summary Cards */}
       <div style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>
-        <Card title="Total Trips" value={summary.totalTrips || 0} icon={<img src="/icons/location.svg" alt="" />} />
-        <Card title="Most Active Driver" value={summary.topDriver || "N/A"} icon={<img src="/icons/person.svg" />} />
-        <Card title="Most Used Vehicle" value={summary.topVehicle || "N/A"} icon={<img src="/icons/car_directions.svg" />} />
+        <Card title="Total Trips" value={summary.totalTrips || 0} icon={<MapPin style={{ color: "ea580c" }}/>} />
+        <Card title="Most Active Driver" value={summary.topDriver || "N/A"} icon={<Award style={{ color: "#16a34a" }}/>} />
+        <Card title="Most Used Vehicle" value={summary.topVehicle || "N/A"} icon={<Car style={{ color: "ea580c" }}/>} />
       </div>
 
       {/* Utilization Charts */}
@@ -53,8 +54,8 @@ const Dashboard = () => {
 
       {/* Fuel Efficiency Cards */}
       <div style={{ display: "flex", gap: "16px" }}>
-        <Card title="Litres / 100km" value={`${summary.litresPer100Km || 0} L`} icon="⛽" />
-        <Card title="Cost per km" value={`E ${summary.costPerKm || 0}`} icon="💰" />
+        <Card title="Litres / 100km" value={`${summary.litresPer100Km || 0} L`} icon={<Fuel style={{ color: "#2563eb" }}/>} />
+        <Card title="Cost per km" value={`E ${summary.costPerKm || 0}`} icon={<Banknote style={{ color: "#16a34a" }}/>} />
       </div>
     </div>
   );

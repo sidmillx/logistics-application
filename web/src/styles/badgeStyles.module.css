@@ -1,0 +1,43 @@
+/* styles/badgeStyles.module.css */
+
+/* Base badge styles */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px; /* full rounded */
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem; /* text-xs */
+  font-weight: 500; /* font-medium */
+  transition: background-color 0.2s ease;
+  cursor: default;
+}
+
+/* Available variant */
+.available {
+  background-color: rgba(220, 252, 231, 1); /* bg-green-100 */
+  color: rgba(22, 101, 52, 1); /* text-green-800 */
+}
+
+.available:hover {
+  background-color: rgba(220, 252, 231, 1); /* hover:bg-green-100 */
+}
+
+/* In Use variant */
+.inUse {
+  background-color: rgba(219, 234, 254, 1); /* bg-blue-100 */
+  color: rgba(30, 64, 175, 1); /* text-blue-800 */
+}
+
+.inUse:hover {
+  background-color: rgba(219, 234, 254, 1); /* hover:bg-blue-100 */
+}
+
+/* Maintenance variant */
+.maintenance {
+  background-color: rgba(254, 215, 170, 1); /* bg-orange-100 */
+  color: rgba(194, 65, 12, 1); /* text-orange-800 */
+}
+
+.maintenance:hover {
+  background-color: rgba(254, 215, 170, 1); /* hover:bg-orange-100 */
+}
