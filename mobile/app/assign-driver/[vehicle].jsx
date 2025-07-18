@@ -1,22 +1,25 @@
 import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Platform, Alert } from 'react-native';
-import { Button, Menu, useTheme } from 'react-native-paper';
+import { Button, Menu, useTheme, Select } from 'react-native-paper';
 import { router, useLocalSearchParams } from 'expo-router';
-import { getItemAsync } from 'expo-secure-store';
 import API_BASE_URL from '../../config/api';
+import { getItem } from '../../utils/storage';
+import { Car } from 'lucide-react-native'
 
 export default function AssignDriver() {
-  const { vehicle } = useLocalSearchParams(); // expects vehicle to be an ID string
+  const { vehicle, plateNumber } = useLocalSearchParams(); // expects vehicle to be an ID string
   const [visible, setVisible] = useState(false);
   const [drivers, setDrivers] = useState([]);
   const [selectedDriver, setSelectedDriver] = useState(null);
+  const [vehicleData, setVehicleData] = useState(null);
+
   const theme = useTheme();
 
   const getToken = async () => {
     if (Platform.OS === 'web') {
       return localStorage.getItem('token');
     } else {
-      return await getItemAsync('token');
+      return await getItem('token');
     }
   };
 
@@ -41,6 +44,28 @@ export default function AssignDriver() {
 
     fetchDrivers();
   }, []);
+
+  useEffect(() => {
+  const fetchVehicle = async () => {
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API_BASE_URL}/api/mobile/supervisor/vehicles/${vehicle}`, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await res.json();
+      setVehicleData(data);
+    } catch (err) {
+      console.error("Failed to fetch vehicle info:", err);
+    }
+  };
+
+  if (vehicle) fetchVehicle();
+}, [vehicle]);
+
 
   const handleAssign = async () => {
     try {
@@ -76,8 +101,28 @@ export default function AssignDriver() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text variant="headlineSmall" style={styles.title}>Vehicle: {vehicle}</Text>
-      <Text variant="bodyMedium" style={styles.subtitle}>Ready for assignment</Text>
+          <View style={styles.assignmentCard}>
+          <View style={styles.assignmentCardHeader}>
+            <View style={styles.assignmentIconContainer}>
+             <Car />
+            </View>
+            <Text style={styles.assignmentCardTitle}>Vehicle Details</Text>
+          </View>
+          
+          <View style={styles.assignmentCardContent}>
+            <View style={styles.assignmentVehicleIdContainer}>
+              <Text style={styles.assignmentVehicleIdLabel}>Vehicle</Text>
+              <Text style={styles.assignmentVehicleIdValue}>
+                {plateNumber}
+              </Text>
+            </View>
+            
+            <View style={styles.assignmentStatusContainer}>
+              <View style={styles.assignmentStatusIndicator} />
+              <Text style={styles.assignmentStatusText}>{status}</Text>
+            </View>
+          </View>
+        </View>
 
       <Menu
         visible={visible}
@@ -103,6 +148,7 @@ export default function AssignDriver() {
           />
         ))}
       </Menu>
+      
 
       <Button
         mode="contained"
@@ -134,5 +180,74 @@ const styles = StyleSheet.create({
   },
   assignButton: {
     marginTop: 10,
+  },
+
+  assignmentCard: {
+    borderWidth: 2,
+    borderColor: 'rgba(0, 32, 77, 0.2)',
+    borderRadius: 8,
+    backgroundColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    padding: 16,
+    marginBottom: 20
+  },
+  assignmentCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 32, 77, 0.1)',
+  },
+  assignmentIconContainer: {
+    width: 32,
+    height: 32,
+    backgroundColor: 'rgba(0, 32, 77, 0.1)',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  assignmentCardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#00204D',
+  },
+  assignmentCardContent: {
+    gap: 16,
+  },
+  assignmentVehicleIdContainer: {
+    backgroundColor: '#f9fafb',
+    padding: 16,
+    borderRadius: 12,
+  },
+  assignmentVehicleIdLabel: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginBottom: 4,
+  },
+  assignmentVehicleIdValue: {
+    fontFamily: 'monospace',
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#00204D',
+  },
+  assignmentStatusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  assignmentStatusIndicator: {
+    width: 8,
+    height: 8,
+    backgroundColor: '#10b981',
+    borderRadius: 4,
+  },
+  assignmentStatusText: {
+    color: '#059669',
+    fontWeight: '500',
   },
 });

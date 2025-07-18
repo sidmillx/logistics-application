@@ -187,6 +187,7 @@ const VehicleManagement = () => {
     { key: "plateNumber", title: "Plate Number" },
     { key: "make", title: "Make" },
     { key: "model", title: "Model" },
+    { key: "entityName", title: "Entity"},
     {
       key: "status",
       title: "Status",

@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Alert, Platform } from 'react-native';
 import { Button, TextInput, Text, useTheme, ActivityIndicator } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { getItemAsync } from 'expo-secure-store';
 import { jwtDecode } from 'jwt-decode';
 import PropTypes from 'prop-types';
 import API_BASE_URL from '../../config/api';
+import {getItem} from '../../utils/storage';
 
 // Constants for error messages and configuration
 const ERROR_MESSAGES = {
@@ -57,7 +57,7 @@ const CheckOutScreen = () => {
       if (Platform.OS === 'web') {
         localStorage.removeItem('token');
       } else {
-        await getItemAsync('token').then(() => getItemAsync('token', { requireAuthentication: false }));
+        await getItem('token').then(() => getItem('token', { requireAuthentication: false }));
       }
       router.replace('/');
     } catch (err) {
@@ -69,7 +69,7 @@ const CheckOutScreen = () => {
     try {
       const token = Platform.OS === 'web'
         ? localStorage.getItem('token')
-        : await getItemAsync('token');
+        : await getItem('token');
       
       if (!token) {
         throw new Error(ERROR_MESSAGES.AUTH_ERROR);

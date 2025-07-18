@@ -263,6 +263,8 @@ router.post("/supervisor/fuel", authorize("supervisor"), async (req, res) => {
   }
 });
 
+
+
 // GET /api/supervisor/vehicles/:id/details
 router.get("/supervisor/vehicles/:id/details", authenticate, authorize("supervisor"), async (req, res) => {
   try {

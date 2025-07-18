@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Alert, Platform, Image } from 'react-native';
 import { Button, TextInput, Text, useTheme, ActivityIndicator } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { getItemAsync } from 'expo-secure-store';
 import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 import PropTypes from 'prop-types';
 import API_BASE_URL from '../../config/api';
+import { getItem } from '../../utils/storage';
 
 // Constants for error messages and configuration
 const ERROR_MESSAGES = {
@@ -66,8 +66,8 @@ const LogFuelScreen = () => {
       if (Platform.OS === 'web') {
         localStorage.removeItem('token');
       } else {
-        await getItemAsync('token').then(async (token) => {
-          if (token) await getItemAsync('token');
+        await getItem('token').then(async (token) => {
+          if (token) await getItem('token');
         });
       }
       router.replace('/');
@@ -113,7 +113,7 @@ const LogFuelScreen = () => {
       try {
         let token = Platform.OS === 'web' 
           ? localStorage.getItem('token') 
-          : await getItemAsync('token');
+          : await getItem('token');
         
         if (!token) {
           Alert.alert("Error", ERROR_MESSAGES.TOKEN_ERROR);

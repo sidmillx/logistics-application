@@ -1,15 +1,15 @@
 import { Tabs } from 'expo-router';
-import { MaterialIcons } from '@expo/vector-icons';
+import { Car, LayoutDashboard, Users } from 'lucide-react-native'
 
 export default function SupervisorLayout() {
   return (
     <Tabs screenOptions={{ headerShown: false }}>
       <Tabs.Screen
-        name="index"
+        name="home"
         options={{
           title: 'Dashboard',
           tabBarIcon: ({ color }) => (
-            <MaterialIcons name="dashboard" size={24} color={color} />
+            <LayoutDashboard  size={24} color={color} />
           ),
           href: '/',
         }}
@@ -19,7 +19,7 @@ export default function SupervisorLayout() {
         options={{
           title: 'Vehicles',
           tabBarIcon: ({ color }) => (
-            <MaterialIcons name="directions-car" size={24} color={color} />
+            <Car size={24} color={color} />
           ),
           href: '/vehicles',
         }}
@@ -29,7 +29,7 @@ export default function SupervisorLayout() {
         options={{
           title: 'Drivers',
           tabBarIcon: ({ color }) => (
-            <MaterialIcons name="people" size={24} color={color} />
+            <Users size={24} color={color} />
           ),
           href: '/drivers',
         }}

@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, FlatList, Alert, Platform } from 'react-native';
 import { Card, Text, useTheme, ActivityIndicator, Divider } from 'react-native-paper';
 import { useRouter } from 'expo-router';
-import { getItemAsync } from 'expo-secure-store';
+import { getItem } from '../../../utils/storage';
 import API_BASE_URL from '../../../config/api';
+import { MapPin, Clock, User } from 'lucide-react-native';
 
 export default function DriversScreen() {
   const theme = useTheme();
@@ -18,7 +19,7 @@ export default function DriversScreen() {
         if (Platform.OS === 'web') {
           token = localStorage.getItem('token');
         } else {
-          token = await getItemAsync('token');
+          token = await getItem('token');
         }
 
         const res = await fetch(`${API_BASE_URL}/api/mobile/supervisor/drivers`, {
@@ -54,6 +55,17 @@ export default function DriversScreen() {
     );
   }
 
+   const getStatusColor = (status) => {
+    switch (status) {
+      case "active":
+        return styles.activeBadge;
+      case "assigned":
+        return styles.assignedBadge;
+      default:
+        return styles.defaultBadge;
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Text variant="headlineSmall" style={styles.title}>Drivers</Text>
@@ -61,17 +73,40 @@ export default function DriversScreen() {
       <FlatList
         data={drivers}
         renderItem={({ item: driver }) => (
-          <Card style={styles.driverCard} mode="elevated">
-            <Card.Content>
-              <Text style={styles.label}>Name:</Text>
-              <Text style={styles.value}>{driver.name}</Text>
+         <Card style={styles.card}>
+              <Card.Content>
+                <View style={styles.cardHeader}>
+                  <View style={styles.driverInfo}>
+                    <View style={styles.iconContainer}>
+                      <User size={20} color="#00204D" />
+                    </View>
+                    <View>
+                      <Text style={styles.driverName}>{driver.name}</Text>
+                      <Text style={[styles.badge, getStatusColor(driver.status)]}>
+                        {driver.status}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.tripsContainer}>
+                    <Text style={styles.tripsCount}>{driver.trips}</Text>
+                    <Text style={styles.tripsLabel}>trips</Text>
+                  </View>
+                </View>
 
-              <Divider style={styles.divider} />
+                <View style={styles.driverDetails}>
+                  <View style={styles.detailRow}>
+                    <MapPin size={16} color="#666" />
+                    <Text style={styles.detailText}>{driver.currentLocation}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Clock size={16} color="#666" />
+                    <Text style={styles.detailText}>Last seen {driver.lastSeen}</Text>
+                  </View>
+                </View>
+              </Card.Content>
+            </Card>
 
-              <Text style={styles.label}>Trips:</Text>
-              <Text style={styles.value}>{driver.trips || 'No trips'}</Text>
-            </Card.Content>
-          </Card>
+            
         )}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
@@ -80,35 +115,95 @@ export default function DriversScreen() {
   );
 }
 
+//  <Card style={styles.driverCard} mode="elevated">
+ 
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
+    backgroundColor: '#f8f9fa' // Light background for better contrast
   },
   title: {
     marginBottom: 20,
     fontWeight: 'bold',
+    fontSize: 24, // Explicit size for headings
+    color: '#1a1a1a' // Darker text for better readability
   },
-  driverCard: {
-    marginBottom: 16,
-    borderRadius: 12,
+  card: {
     backgroundColor: '#fff',
+    borderRadius: 12,
     elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    marginBottom: 15,
   },
-  label: {
-    fontWeight: 'bold',
-    color: '#444',
-    fontSize: 14,
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
   },
-  value: {
+  driverInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  iconContainer: {
+    backgroundColor: 'rgba(0, 32, 77, 0.1)',
+    padding: 8,
+    borderRadius: 20,
+  },
+  driverName: {
     fontSize: 16,
-    marginBottom: 10,
-    color: '#222',
+    fontWeight: '600',
+    color: '#00204D',
+    marginBottom: 4,
   },
-  divider: {
-    marginVertical: 4,
+  badge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    fontSize: 12,
+    fontWeight: '500',
   },
-  listContent: {
-    paddingBottom: 20,
+  activeBadge: {
+    backgroundColor: '#DCFCE7',
+    color: '#166534',
+  },
+  assignedBadge: {
+    backgroundColor: '#DBEAFE',
+    color: '#1E40AF',
+  },
+  defaultBadge: {
+    backgroundColor: '#F3F4F6',
+    color: '#1F2937',
+  },
+  tripsContainer: {
+    alignItems: 'flex-end',
+  },
+  tripsCount: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#00204D',
+  },
+  tripsLabel: {
+    fontSize: 12,
+    color: '#666',
+  },
+  driverDetails: {
+    gap: 8,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  detailText: {
+    fontSize: 14,
+    color: '#666',
   },
 });

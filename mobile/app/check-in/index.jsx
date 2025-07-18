@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Alert, Platform } from 'react-native';
 import { Button, TextInput, Text, useTheme, ActivityIndicator } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import PropTypes from 'prop-types';
 import API_BASE_URL from '../../config/api';
+import { getItem, clearAll } from '../../utils/storage';
 
 // Constants for error messages and configuration
 const ERROR_MESSAGES = {
@@ -58,7 +58,8 @@ const CheckInScreen = () => {
       if (Platform.OS === 'web') {
         localStorage.removeItem('token');
       } else {
-        await AsyncStorage.removeItem('token');
+         await clearAll();
+
       }
       router.replace('/');
     } catch (err) {
@@ -70,7 +71,7 @@ const CheckInScreen = () => {
     try {
       const token = Platform.OS === 'web'
         ? localStorage.getItem('token')
-        : await AsyncStorage.getItem('token');
+        : await getItem('token');
       
       if (!token) {
         throw new Error(ERROR_MESSAGES.AUTH_ERROR);
@@ -123,7 +124,7 @@ const CheckInScreen = () => {
       if (!token) return;
 
       const [userStr] = await Promise.all([
-        AsyncStorage.getItem("user"),
+        getItem("user"),
       ]);
 
       if (!userStr) {

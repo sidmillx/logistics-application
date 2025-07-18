@@ -439,9 +439,13 @@ router.get("/vehicles", async (req, res) => {
         model: vehicles.model,
         status: vehicles.status,
         entityId: vehicles.entityId,
+        entityName: entities.name,
         createdAt: vehicles.createdAt,
       })
-      .from(vehicles);
+      .from(vehicles)
+      .leftJoin(entities, eq(vehicles.entityId, entities.id));
+
+    console.log(`Fetched vehicles data: ${results}`)
     
     res.json(results);
   } catch (err) {

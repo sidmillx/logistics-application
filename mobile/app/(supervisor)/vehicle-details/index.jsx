@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Platform, ActivityIndicator, Alert } from 'react-native';
 import { Button, Card, useTheme } from 'react-native-paper';
 import { router, useLocalSearchParams } from 'expo-router';
-import { getItemAsync } from 'expo-secure-store';
 import API_BASE_URL from '../../../config/api';
+import { getItem } from '../../../utils/storage';
 
 export default function VehicleDetails() {
   const { vehicleId, vehicleName } = useLocalSearchParams();
@@ -13,11 +13,8 @@ export default function VehicleDetails() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  const getToken = async () => {
-    return Platform.OS === 'web'
-      ? localStorage.getItem('token')
-      : await getItemAsync('token');
-  };
+  const getToken = async () => await getItem('token');
+
 
   useEffect(() => {
     const fetchVehicleDetails = async () => {
@@ -142,29 +139,47 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
+    backgroundColor: '#fff' // Add if you want explicit white background
   },
   title: {
     marginBottom: 5,
     fontWeight: 'bold',
+    fontSize: 18, // Explicit font size
   },
   status: {
     marginBottom: 20,
     color: '#666',
+    fontSize: 14, // Consistent text sizing
   },
   card: {
     marginBottom: 20,
+    borderRadius: 8, // Add if cards should have rounded corners
+    padding: 16, // Add internal spacing
+    backgroundColor: '#fff', // Ensure card background
+    elevation: 2, // Android shadow
+    shadowColor: '#000', // iOS shadow
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   cardTitle: {
     marginBottom: 10,
     fontWeight: 'bold',
+    fontSize: 16, // Slightly larger than body text
   },
   cardText: {
     marginBottom: 5,
+    fontSize: 14,
+    lineHeight: 20, // Better text readability
   },
   buttonContainer: {
     marginTop: 10,
+    flexDirection: 'row', // If you want side-by-side buttons
+    justifyContent: 'space-between', // Optional spacing
   },
   button: {
     marginVertical: 5,
+    borderRadius: 4, // Standard button rounding
+    paddingVertical: 10, // Comfortable tap target
   },
 });

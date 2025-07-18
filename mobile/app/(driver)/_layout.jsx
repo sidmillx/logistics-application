@@ -1,66 +1,56 @@
-import { Tabs, useRouter } from 'expo-router';
-import { MaterialIcons } from '@expo/vector-icons';
-import { Alert, TouchableOpacity, View } from 'react-native';
+import { Stack, useRouter } from 'expo-router';
+import { Alert, TouchableOpacity, View, Text } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
+import { LogOut } from 'lucide-react-native';
 
-export default function TabsLayout() {
+export default function CustomStackLayout() {
   const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const userStr = await AsyncStorage.getItem('user');
+      if (!userStr) {
+        router.replace('/login');
+      }
+    };
+    checkAuth();
+  }, []);
 
   const handleLogout = async () => {
-    Alert.alert('Confirm Logout', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await AsyncStorage.clear();
-            console.log('Storage cleared, navigating to root');
-            router.replace('/'); // Navigate to root (assumed auth screen)
-          } catch (error) {
-            console.error('Logout error:', error);
-            Alert.alert('Error', 'Failed to log out. Please try again.');
-          }
-        },
-      },
-    ]);
+    setIsLoggingOut(true);
+    try {
+      await AsyncStorage.multiRemove(['user', 'token']);
+      router.replace('/login');
+    } catch (error) {
+      console.error('[LOGOUT] Error:', error);
+      Alert.alert('Error', 'Logout failed. Please try again.');
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
+  if (isLoggingOut) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text>Logging out...</Text>
+      </View>
+    );
+  }
+
   return (
-    <Tabs
+    <Stack
       screenOptions={{
-        tabBarShowLabel: false,
-        tabBarStyle: {
-          height: 60,
-          alignItems: 'center',
-        },
         headerRight: () => (
           <TouchableOpacity
-            activeOpacity={0.7}
             onPress={handleLogout}
             style={{ marginRight: 15 }}
           >
-            <MaterialIcons name="logout" size={24} color="#222" />
+            <LogOut size={24} color="#222" />
           </TouchableOpacity>
         ),
       }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          headerShown: true, // Show header to include logout button
-          title: 'Home', // Optional: Set a title for the tab
-        }}
-      />
-      {/* Add more screens if needed, e.g., */}
-      {/* <Tabs.Screen
-        name="profile"
-        options={{
-          headerShown: true,
-          title: 'Profile',
-        }}
-      /> */}
-    </Tabs>
+    />
   );
 }

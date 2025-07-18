@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { Text, Card, useTheme, ActivityIndicator } from 'react-native-paper';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import API_BASE_URL from '../../config/api';
+import { getItem } from '../../utils/storage';
+import { Car, Users, Fuel, TrendingUp } from 'lucide-react-native';
 
 const SupervisorDashboard = () => {
   const router = useRouter();
   const theme = useTheme();
+  const [activeCard, setActiveCard] = useState(null);
 
   const [stats, setStats] = useState({
     totalVehicles: 0,
@@ -21,7 +23,7 @@ const SupervisorDashboard = () => {
     const fetchDashboardData = async () => {
       try {
         // Load user info from storage
-        const userStr = await AsyncStorage.getItem("user");
+        const userStr = await getItem("user");
         const user = JSON.parse(userStr);
         setUserInfo(user);
 
@@ -66,33 +68,78 @@ const SupervisorDashboard = () => {
       <Text variant="bodyMedium" style={styles.subtitle}>Overview of fleet operations</Text>
 
       <View style={styles.cardsContainer}>
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text variant="titleLarge" style={styles.cardTitle}>Total Vehicles</Text>
-            <Text variant="displayMedium" style={styles.cardValue}>
-              {stats.totalVehicles}
-            </Text>
-          </Card.Content>
-        </Card>
-
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text variant="titleLarge" style={styles.cardTitle}>Active Drivers</Text>
-            <Text variant="displayMedium" style={styles.cardValue}>
-              {stats.activeDrivers}
-            </Text>
-          </Card.Content>
-        </Card>
-
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text variant="titleLarge" style={styles.cardTitle}>Fuel Logs</Text>
-            <Text variant="displayMedium" style={styles.cardValue}>
-              {stats.fuelLogs}
-            </Text>
+      {/* Total Vehicles Card */}
+      <View 
+        onStartShouldSetResponder={() => true}
+        onResponderStart={() => setActiveCard(0)}
+        onResponderRelease={() => setActiveCard(null)}
+        style={styles.cardWrapper}
+      >
+        <Card style={[styles.card, activeCard === 0 && styles.cardActive]}>
+          <Card.Content style={styles.cardContent}>
+            <View style={styles.textContainer}>
+              <Text style={styles.cardTitle}>Total Vehicles</Text>
+              <Text style={styles.cardValue}>3</Text>
+              <View style={styles.trendContainer}>
+                <TrendingUp size={14} color="#16A34A" />
+                <Text style={styles.trendText}>+2 this month</Text>
+              </View>
+            </View>
+            <View style={[styles.iconContainer, { backgroundColor: '#EFF6FF' }]}>
+              <Car size={24} color="#2563EB" />
+            </View>
           </Card.Content>
         </Card>
       </View>
+
+      {/* Active Drivers Card */}
+      <View 
+        onStartShouldSetResponder={() => true}
+        onResponderStart={() => setActiveCard(1)}
+        onResponderRelease={() => setActiveCard(null)}
+        style={styles.cardWrapper}
+      >
+        <Card style={[styles.card, activeCard === 1 && styles.cardActive]}>
+          <Card.Content style={styles.cardContent}>
+            <View style={styles.textContainer}>
+              <Text style={styles.cardTitle}>Active Drivers</Text>
+              <Text style={styles.cardValue}>4</Text>
+              <View style={styles.trendContainer}>
+                <TrendingUp size={14} color="#16A34A" />
+                <Text style={styles.trendText}>All available</Text>
+              </View>
+            </View>
+            <View style={[styles.iconContainer, { backgroundColor: '#F0FDF4' }]}>
+              <Users size={24} color="#16A34A" />
+            </View>
+          </Card.Content>
+        </Card>
+      </View>
+
+      {/* Fuel Logs Card */}
+      <View 
+        onStartShouldSetResponder={() => true}
+        onResponderStart={() => setActiveCard(2)}
+        onResponderRelease={() => setActiveCard(null)}
+        style={styles.cardWrapper}
+      >
+        <Card style={[styles.card, activeCard === 2 && styles.cardActive]}>
+          <Card.Content style={styles.cardContent}>
+            <View style={styles.textContainer}>
+              <Text style={styles.cardTitle}>Fuel Logs</Text>
+              <Text style={styles.cardValue}>8</Text>
+              <View style={styles.trendContainer}>
+                <TrendingUp size={14} color="#16A34A" />
+                <Text style={styles.trendText}>3 today</Text>
+              </View>
+            </View>
+            <View style={[styles.iconContainer, { backgroundColor: '#FFF7ED' }]}>
+              <Fuel size={24} color="#EA580C" />
+            </View>
+          </Card.Content>
+        </Card>
+      </View>
+    </View>
     </View>
   );
 };
@@ -103,35 +150,77 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   title: {
-    marginBottom: 5,
+    marginBottom: 10,
     fontWeight: 'bold',
+    fontSize: 32,
+    lineHeight: 32, // Good - unitless
   },
   subtitle: {
     marginBottom: 20,
-    color: '#666',
+    fontSize: 16,
+    color: '#4B5563', // Equivalent to rgb(75, 85, 99) but as hex
   },
   cardsContainer: {
-    flexDirection: 'column', // stack vertically
-    gap: 15, // vertical spacing between cards (alternative to marginBottom)
+    marginBottom: 16,
+    justifyContent: "center"
+  },
+  cardWrapper: {
+    width: '100%',
+    marginBottom: 16,
   },
   card: {
-    width: '100%',         // full width
-    padding: 20,           // more spacing inside the card
-    borderRadius: 12,
-    elevation: 3,
+    borderRadius: 8,
+    borderWidth: 0, // Correct RN syntax (not border: 0)
+    backgroundColor: '#FFFFFF',
+    // iOS shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    // Android shadow
+    elevation: 2,
+  },
+  cardActive: {
+    // Enhanced shadow
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  cardContent: {
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  textContainer: {
+    flex: 1,
   },
   cardTitle: {
+    fontSize: 14,
+    color: '#757575',
+    fontWeight: '500',
     marginBottom: 8,
-    color: '#888',
-    textAlign: 'left',
-    fontSize: 16,
   },
   cardValue: {
-    textAlign: 'left',
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
+    color: '#00204D',
+    marginBottom: 8,
+  },
+  trendContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  trendText: {
+    fontSize: 12,
+    color: '#757575',
+    marginLeft: 4,
+  },
+  iconContainer: {
+    padding: 12,
+    borderRadius: 50, // Perfect for circle
+    marginLeft: 16,
   },
 });
-
-
 export default SupervisorDashboard;

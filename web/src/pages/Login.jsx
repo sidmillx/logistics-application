@@ -44,6 +44,9 @@ const Login = () => {
     }
   };
 
+  // Clear both localStorage and sessionStorage
+ 
+
   return (
     <div style={styles.page}>
       <div style={styles.container}>
@@ -51,7 +54,7 @@ const Login = () => {
           <img
             src="/icons/Inyatsi Logo.png"
             alt="Logo"
-            style={{ width: 120,marginBottom: 5 }}
+            style={{ width: 120, marginBottom: 5 }}
           />
         </div>
 
@@ -99,6 +102,8 @@ const Login = () => {
               "Login"
             )}
           </button>
+
+          
         </form>
       </div>
     </div>
