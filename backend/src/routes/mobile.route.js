@@ -97,28 +97,89 @@ router.get("/supervisor/vehicles", authenticate, async (req, res) => {
 //     res.status(500).json({ error: "Failed to fetch drivers" });
 //   }
 // });
-
 router.get("/supervisor/drivers", authenticate, async (req, res) => {
   try {
-    console.log("Fetching all drivers");
+    console.log("Fetching all drivers with last activity info and status");
 
-    const drivers = await db.execute(
-      sql`
-        SELECT u.id, u.fullname AS name, COUNT(t.id) AS trips
-        FROM users u
-        LEFT JOIN trips t ON t.driver_id = u.id
-        WHERE u.role = 'driver'
-        GROUP BY u.id, u.fullname
-        ORDER BY u.fullname ASC
-      `
-    );
+    const drivers = await db.execute(sql`
+      SELECT 
+        u.id,
+        u.fullname AS name,
+        COUNT(t.id) AS trips,
+
+        -- Last Check-in Time
+        ci.checked_in_at AS last_checkin_time,
+        ci.start_location AS last_checkin_location,
+
+        -- Last Check-out Time
+        co.checked_out_at AS last_checkout_time,
+        co.end_location AS last_checkout_location,
+
+        -- Status: on trip if active trip, else assigned if assigned vehicle, else unassigned
+        CASE 
+          WHEN at.active_trip_id IS NOT NULL THEN 'on trip'
+          WHEN a.vehicle_id IS NOT NULL THEN 'assigned'
+          ELSE 'unassigned'
+        END AS status
+
+      FROM users u
+
+      LEFT JOIN trips t ON t.driver_id = u.id
+
+      LEFT JOIN LATERAL (
+        SELECT c.checked_in_at, c.start_location
+        FROM checkins c
+        WHERE c.driver_id = u.id
+        ORDER BY c.checked_in_at DESC
+        LIMIT 1
+      ) ci ON true
+
+      LEFT JOIN LATERAL (
+        SELECT c.checked_out_at, c.end_location
+        FROM checkouts c
+        WHERE c.driver_id = u.id
+        ORDER BY c.checked_out_at DESC
+        LIMIT 1
+      ) co ON true
+
+      LEFT JOIN LATERAL (
+        SELECT trip.id AS active_trip_id
+        FROM trips trip
+        WHERE trip.driver_id = u.id
+          AND trip.check_out_time IS NULL
+        LIMIT 1
+      ) at ON true
+
+      LEFT JOIN LATERAL (
+        SELECT vehicle_id
+        FROM assignments a2
+        WHERE a2.driver_id = u.id
+        LIMIT 1
+      ) a ON true
+
+      WHERE u.role = 'driver'
+
+      GROUP BY 
+        u.id, u.fullname, 
+        ci.checked_in_at, ci.start_location, 
+        co.checked_out_at, co.end_location,
+        at.active_trip_id,
+        a.vehicle_id
+
+      ORDER BY u.fullname ASC
+    `);
 
     res.json(drivers.rows);
+    console.log(drivers.rows);
   } catch (err) {
     console.error("Failed to fetch drivers:", err);
     res.status(500).json({ error: "Failed to fetch drivers" });
   }
 });
+
+
+
+
 
 
 router.get("/drivers", authenticate, async (req, res) => {
@@ -297,7 +358,7 @@ router.get("/supervisor/vehicles/:id/details", authenticate, authorize("supervis
       SELECT t.id
       FROM trips t
       WHERE t.vehicle_id = v.id
-        AND t.driver_id = a.driver_id -- ✅ match assignment
+        AND t.driver_id = a.driver_id 
         AND t.check_out_time IS NULL
       ORDER BY t.check_in_time DESC
       LIMIT 1
@@ -438,6 +499,7 @@ router.post("/driver/checkin", async (req, res) => {
       tripPurpose,
     });
 
+    // Insert check-in record
     const [checkin] = await db.insert(checkins).values({
       vehicleId,
       driverId,
@@ -446,9 +508,10 @@ router.post("/driver/checkin", async (req, res) => {
       startOdometer,
       startLocation,
       tripPurpose,
-      timestamp: new Date(), // add timestamp if not auto-generated
+      checkedInAt: new Date(),
     }).returning();
 
+    // Insert trip record
     const [trip] = await db.insert(trips).values({
       driverId,
       vehicleId,
@@ -456,6 +519,11 @@ router.post("/driver/checkin", async (req, res) => {
       locationStart: startLocation,
       checkInTime: new Date(),
     }).returning();
+
+    // Update vehicle status to "in-use"
+    await db.update(vehicles)
+      .set({ status: 'in-use' })
+      .where(eq(vehicles.id, vehicleId));
 
     res.status(201).json({
       message: "Check-in successful",
@@ -467,6 +535,7 @@ router.post("/driver/checkin", async (req, res) => {
     res.status(500).json({ error: "Driver check-in failed" });
   }
 });
+
 
 
 router.get("/driver/active-trip", authenticate, async (req, res) => {

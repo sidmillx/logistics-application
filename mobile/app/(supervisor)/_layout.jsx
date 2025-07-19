@@ -1,44 +1,52 @@
 import { Tabs } from 'expo-router';
-import { Car, LayoutDashboard, Users } from 'lucide-react-native'
+import { Car, LayoutDashboard, Users } from 'lucide-react-native';
 
 export default function SupervisorLayout() {
   return (
-    <Tabs screenOptions={{ headerShown: false }}>
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: '#00204D',
+        tabBarInactiveTintColor: 'gray',
+        tabBarStyle: {
+          paddingBottom: 5,
+          height: 60,
+        },
+      }}
+    >
       <Tabs.Screen
-        name="home"
+        name="index"
         options={{
           title: 'Dashboard',
-          tabBarIcon: ({ color }) => (
-            <LayoutDashboard  size={24} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <LayoutDashboard size={24} color={focused ? '#00204D' : color} />
           ),
-          href: '/',
         }}
       />
       <Tabs.Screen
         name="vehicles/index"
         options={{
           title: 'Vehicles',
-          tabBarIcon: ({ color }) => (
-            <Car size={24} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Car size={24} color={focused ? '#00204D' : color} />
           ),
-          href: '/vehicles',
+
         }}
       />
       <Tabs.Screen
         name="drivers/index"
         options={{
           title: 'Drivers',
-          tabBarIcon: ({ color }) => (
-            <Users size={24} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Users size={24} color={focused ? '#00204D' : color} />
           ),
-          href: '/drivers',
         }}
       />
-      {/* Explicitly hide the vehicle-details route */}
       <Tabs.Screen
-        name="vehicle-details/index"
+        name="vehicle-details/[vehicle]"
         options={{
-          href: null, // This will hide it from tabs
+           title: 'Vehicle details',
+           href: null,
         }}
       />
     </Tabs>

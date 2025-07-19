@@ -34,6 +34,8 @@ export default function DriversScreen() {
         }
 
         const data = await res.json();
+        console.log('Fetched driver details new:', JSON.stringify(data, null, 2));        
+
         setDrivers(data);
       } catch (err) {
         console.error("Driver fetch error:", err);
@@ -66,51 +68,75 @@ export default function DriversScreen() {
     }
   };
 
+  function getLatestInfo(driver) {
+  const checkinTime = driver.last_checkin_time ? new Date(driver.last_checkin_time) : null;
+  const checkoutTime = driver.last_checkout_time ? new Date(driver.last_checkout_time) : null;
+
+  if (!checkinTime && !checkoutTime) {
+    return { lastSeen: 'N/A', currentLocation: 'Unknown' };
+  }
+  if (checkinTime && !checkoutTime) {
+    return { lastSeen: checkinTime.toLocaleString(), currentLocation: driver.last_checkin_location || 'Unknown' };
+  }
+  if (!checkinTime && checkoutTime) {
+    return { lastSeen: checkoutTime.toLocaleString(), currentLocation: driver.last_checkout_location || 'Unknown' };
+  }
+  // Both exist, pick the later one
+  if (checkinTime > checkoutTime) {
+    return { lastSeen: checkinTime.toLocaleString(), currentLocation: driver.last_checkin_location || 'Unknown' };
+  } else {
+    return { lastSeen: checkoutTime.toLocaleString(), currentLocation: driver.last_checkout_location || 'Unknown' };
+  }
+}
+
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Text variant="headlineSmall" style={styles.title}>Drivers</Text>
 
       <FlatList
-        data={drivers}
-        renderItem={({ item: driver }) => (
-         <Card style={styles.card}>
-              <Card.Content>
-                <View style={styles.cardHeader}>
-                  <View style={styles.driverInfo}>
-                    <View style={styles.iconContainer}>
-                      <User size={20} color="#00204D" />
-                    </View>
-                    <View>
-                      <Text style={styles.driverName}>{driver.name}</Text>
-                      <Text style={[styles.badge, getStatusColor(driver.status)]}>
-                        {driver.status}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.tripsContainer}>
-                    <Text style={styles.tripsCount}>{driver.trips}</Text>
-                    <Text style={styles.tripsLabel}>trips</Text>
-                  </View>
-                </View>
+  data={drivers}
+  renderItem={({ item: driver }) => {
+    const { lastSeen, currentLocation } = getLatestInfo(driver);
 
-                <View style={styles.driverDetails}>
-                  <View style={styles.detailRow}>
-                    <MapPin size={16} color="#666" />
-                    <Text style={styles.detailText}>{driver.currentLocation}</Text>
-                  </View>
-                  <View style={styles.detailRow}>
-                    <Clock size={16} color="#666" />
-                    <Text style={styles.detailText}>Last seen {driver.lastSeen}</Text>
-                  </View>
-                </View>
-              </Card.Content>
-            </Card>
+    return (
+      <Card style={styles.card}>
+        <Card.Content>
+          <View style={styles.cardHeader}>
+            <View style={styles.driverInfo}>
+              <View style={styles.iconContainer}>
+                <User size={20} color="#00204D" />
+              </View>
+              <View>
+                <Text style={styles.driverName}>{driver.name}</Text>
+                <Text style={[styles.badge, getStatusColor(driver.status)]}>
+                  {driver.status || 'Unknown'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.tripsContainer}>
+              <Text style={styles.tripsCount}>{driver.trips}</Text>
+              <Text style={styles.tripsLabel}>trips</Text>
+            </View>
+          </View>
 
-            
-        )}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-      />
+          <View style={styles.driverDetails}>
+            <View style={styles.detailRow}>
+              <MapPin size={16} color="#666" />
+              <Text style={styles.detailText}>{currentLocation}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Clock size={16} color="#666" />
+              <Text style={styles.detailText}>Last seen {lastSeen}</Text>
+            </View>
+          </View>
+        </Card.Content>
+      </Card>
+    );
+  }}
+  keyExtractor={(item) => item.id}
+/>
+
     </View>
   );
 }

@@ -332,6 +332,26 @@ router.get("/fuel-logs", async (req, res) => {
   }
 });
 
+router.post("/users", async (req, res) => {
+
+  try {
+    const { fullname, username, password, role } = req.body;
+    
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = await db.insert(usersTable).values({
+      fullname,
+      username,
+      password: hashedPassword,
+      role 
+    }).returning();
+
+    res.status(201).json(newUser[0]);
+  } catch (err){
+    console.error(err);
+    res.status(500).json({ error: 'Could not create user'});
+  }
+})
+
 
 
 // GET /api/admin/drivers

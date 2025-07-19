@@ -259,7 +259,6 @@ const UserManagement = () => {
           <option value="all">All Roles</option>
           <option value="admin">Admin</option>
           <option value="supervisor">Supervisor</option>
-          <option value="driver">Driver</option>
         </select>
         <button
           onClick={() => setShowAddModal(true)}
@@ -351,7 +350,6 @@ const UserManagement = () => {
             >
               <option value="admin">Admin</option>
               <option value="supervisor">Supervisor</option>
-              <option value="driver">Driver</option>
             </select>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <button

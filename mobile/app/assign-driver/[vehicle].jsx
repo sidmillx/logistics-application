@@ -11,7 +11,7 @@ export default function AssignDriver() {
   const [visible, setVisible] = useState(false);
   const [drivers, setDrivers] = useState([]);
   const [selectedDriver, setSelectedDriver] = useState(null);
-  const [vehicleData, setVehicleData] = useState(null);
+  // const [vehicleData, setVehicleData] = useState(null);
 
   const theme = useTheme();
 
@@ -45,26 +45,26 @@ export default function AssignDriver() {
     fetchDrivers();
   }, []);
 
-  useEffect(() => {
-  const fetchVehicle = async () => {
-    try {
-      const token = await getToken();
-      const res = await fetch(`${API_BASE_URL}/api/mobile/supervisor/vehicles/${vehicle}`, {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+//   useEffect(() => {
+//   const fetchVehicle = async () => {
+//     try {
+//       const token = await getToken();
+//       const res = await fetch(`${API_BASE_URL}/api/mobile/supervisor/vehicles/${vehicle}`, {
+//         headers: {
+//           "Authorization": `Bearer ${token}`,
+//           "Content-Type": "application/json",
+//         },
+//       });
 
-      const data = await res.json();
-      setVehicleData(data);
-    } catch (err) {
-      console.error("Failed to fetch vehicle info:", err);
-    }
-  };
+//       const data = await res.json();
+//       setVehicleData(data);
+//     } catch (err) {
+//       console.error("Failed to fetch vehicle info:", err);
+//     }
+//   };
 
-  if (vehicle) fetchVehicle();
-}, [vehicle]);
+//   if (vehicle) fetchVehicle();
+// }, [vehicle]);
 
 
   const handleAssign = async () => {

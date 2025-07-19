@@ -45,10 +45,10 @@ const FuelUtilization = () => {
     <div>
       <h1>Fuel Utilization</h1>
       <div className="cards" style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>
-        <Card title="Total Litres Consumed" value={`${summary.totalLitres} L`} icon={<Fuel />} />
-        <Card title="AVG Litres / Trip" value={`${summary.avgLitresPerTrip} L`} icon={<Fuel />} />
-        <Card title="Total Fuel Cost" value={`E${summary.totalCost}`} icon={<Banknote />} />
-        <Card title="AVG Cost / Km" value={`E${summary.avgCostPerKm}`} icon={<Banknote />} />
+        <Card title="Total Litres Consumed" value={`${summary.totalLitres ?? 0} L`} icon={<Fuel />} />
+        <Card title="AVG Litres / Trip" value={`${summary.avgLitresPerTrip ?? 0} L`} icon={<Fuel />} />
+        <Card title="Total Fuel Cost" value={`E${summary.totalCost ?? 0}`} icon={<Banknote />} />
+        <Card title="AVG Cost / Km" value={`E${summary.avgCostPerKm ?? 0}`} icon={<Banknote />} />
       </div>
 
        <div

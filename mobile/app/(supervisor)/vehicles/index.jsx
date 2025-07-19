@@ -140,13 +140,21 @@ export default function VehicleFleet() {
                     return;
                   }
                   if (item.driverName) {
+                    // router.push({
+                    //   pathname: '/vehicle-details',
+                    //   params: {
+                    //     vehicleId: item.id,
+                    //     vehicleName: item.driverName,
+                    //   },
+                    // });
                     router.push({
-                      pathname: '/vehicle-details',
+                      pathname: `/vehicle-details/${item.id}`,
                       params: {
                         vehicleId: item.id,
                         vehicleName: item.driverName,
                       },
                     });
+
                   } else {
                     router.push({
                       pathname: `/assign-driver/${item.id}`,
