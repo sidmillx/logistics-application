@@ -17,10 +17,23 @@ export const getItem = async (key) => {
 };
 
 export const clearAll = async () => {
-  if (Platform.OS === 'web') {
-    localStorage.clear();
-    sessionStorage.clear();
-  } else {
-    await AsyncStorage.clear();
+  try {
+    if (Platform.OS === 'web') {
+      localStorage.clear();
+      sessionStorage.clear();
+    } else {
+      await AsyncStorage.clear();
+    }
+  } catch (e) {
+    // iOS throws when storage folder doesn't exist yet — we can safely ignore it
+    if (
+      Platform.OS === 'ios' &&
+      e.message &&
+      e.message.includes('RCTAsyncLocalStorage')
+    ) {
+      console.warn('iOS clearAll warning ignored:', e.message);
+    } else {
+      console.error('Storage clear failed:', e);
+    }
   }
 };
