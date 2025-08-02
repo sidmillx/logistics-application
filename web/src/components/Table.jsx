@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import styles from "./Table.module.css";
+import { FadeLoader } from "react-spinners";
 
 const Table = ({
   columns,
@@ -140,7 +141,10 @@ const Table = ({
 
       {/* Table content */}
       {loading ? (
-        <p className={styles.message}>Loading...</p>
+        // <p className={styles.message}>Loading...</p>
+        <div style={{display: "flex", alignItems: "center", justifyContent: "center", width: "100%"}}>
+          <FadeLoader radius={2} width={3}/>
+        </div>
       ) : currentRows.length === 0 ? (
         <p className={styles.message}>No data available</p>
       ) : (

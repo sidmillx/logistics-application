@@ -6,6 +6,8 @@ import { toast } from "react-toastify";
 import { Edit, Trash2 } from "lucide-react";
 import styles from '../styles/buttonStyles.module.css';
 import { Building2, Truck, CheckCircle } from "lucide-react";
+import { FadeLoader } from "react-spinners";
+
 
 const Entities = () => {
   const [summary, setSummary] = useState({ totalEntities: 0, totalVehicles: 0, availableVehicles: 0 });
@@ -191,7 +193,11 @@ const Entities = () => {
       <h1>Entity Management</h1>
 
       {loading ? (
-        <p style={{ fontStyle: "italic", color: "#888" }}>Loading data...</p>
+        // <p style={{ fontStyle: "italic", color: "#888" }}>Loading data...</p>
+        <div style={{display: "flex", justifyContent: "center", alignItems: "center", height: "100%"}}>
+
+          <FadeLoader />
+        </div>
       ) : (
         <>
           <div style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>

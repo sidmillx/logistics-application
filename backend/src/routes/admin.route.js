@@ -1,4 +1,4 @@
-// src/routes/admin.routes.js
+// IMPORTS
 import express from "express";
 import { authenticate, authorize } from "../middleware/auth.middleware.js";
 import { db } from "../config/db.js";
@@ -20,13 +20,209 @@ const router = express.Router();
 
 // router.use(authenticate, authorize("admin")); REAPPLY THIS LATER, !!!! VERY IMPORTANT !!!
 
-// DRIVERS
-// src/routes/admin.route.js (or equivalent)
 
 
+
+//================================================ DRIVER MANAGEMENT =======================================
+
+/** GET /api/admin/drivers/
+ * 
+ * Description:
+ *  - Get all drivers
+ * 
+ *
+ * Responses:
+ * 500 - Server error
+ * 
+ */
+router.get("/drivers", async (req, res) => {
+  try {
+    // First get all active driver IDs (those currently on trips)
+    const activeDriverResults = await db
+      .select({ 
+        driverId: trips.driverId 
+      })
+      .from(trips)
+      .where(
+        and(
+          isNotNull(trips.checkInTime),
+          isNull(trips.checkOutTime)
+        )
+      )
+      .groupBy(trips.driverId);
+
+    const activeDriverIds = activeDriverResults.map(d => d.driverId);
+
+    // Then get all drivers with their details
+    const allDrivers = await db
+      .select({
+        id: drivers.id,
+        name: usersTable.fullname,
+        contact: drivers.contact,
+        entityName: entities.name,
+      })
+      .from(drivers)
+      .leftJoin(usersTable, eq(drivers.id, usersTable.id))
+      .leftJoin(entities, eq(drivers.entityId, entities.id));
+
+    // Augment each driver with active status
+    const results = allDrivers.map(driver => ({
+      ...driver,
+      isActive: activeDriverIds.includes(driver.id)
+    }));
+
+    res.json(results);
+  } catch (err) {
+    console.error("Failed to fetch drivers:", err);
+    res.status(500).json({ error: "Failed to fetch drivers" });
+  }
+});
+
+
+/** GET /api/admin/drivers/summary
+ * 
+ * Description:
+ *  - Get the summary of drivers
+ * 
+ *
+ * Responses:
+ * 500 - Server error
+ * 
+ */
+router.get("/drivers/summary", async (req, res) => {
+  try {
+    // Get active drivers (currently on trips)
+    const activeDrivers = await db
+      .select({ 
+        driverId: trips.driverId 
+      })
+      .from(trips)
+      .where(
+        and(
+          isNotNull(trips.checkInTime),
+          isNull(trips.checkOutTime)
+        )
+      )
+      .groupBy(trips.driverId);
+
+    // Get total driver count
+    const totalDrivers = await db
+      .select({ count: sql`count(*)` })
+      .from(drivers);
+
+    // Get trip statistics - FIXED VERSION
+    const tripStats = await db
+      .select({
+        totalTrips: sql`count(*)`,
+        avgTrips: sql`ROUND(avg(count)::numeric, 1)`
+      })
+      .from(
+        db
+          .select({
+            driverId: trips.driverId,
+            count: sql`count(*)`.mapWith(Number)
+          })
+          .from(trips)
+          .groupBy(trips.driverId)
+          .as("driver_trips")
+      );
+
+    res.json({
+      totalDrivers: Number(totalDrivers[0].count),
+      activeDrivers: activeDrivers.length,
+      avgTripsPerDriver: tripStats[0].avgTrips || 0,
+      totalTrips: tripStats[0].totalTrips || 0
+    });
+  } catch (err) {
+    console.error("Failed to load driver summary:", err);
+    res.status(500).json({ error: "Failed to fetch driver summary" });
+  }
+});
+
+
+/** GET /api/admin/drivers/:id
+ * 
+ * Description:
+ *  - Get a single driver by id
+ * 
+ * Request Parameters:
+ * {
+ *    "driverId": "string"
+ * }
+ * 
+ * 
+ * 
+ * Responses:
+ * 500 - Failed to get driver profile
+ * 
+ */
+router.get("/drivers/:id", async (req, res) => {
+  const driverId = req.params.id;
+
+  try {
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, driverId));
+    const [driver] = await db.select().from(drivers).where(eq(drivers.id, driverId));
+
+    const tripsData = await db
+      .select()
+      .from(trips)
+      .where(eq(trips.driverId, driverId));
+
+    const totalTrips = tripsData.length;
+    const hoursLogged = tripsData.reduce((acc, trip) => {
+      if (trip.checkInTime && trip.checkOutTime) {
+        const duration = (new Date(trip.checkOutTime) - new Date(trip.checkInTime)) / 3600000;
+        return acc + duration;
+      }
+      return acc;
+    }, 0);
+
+    const avgDistance = (() => {
+      const validTrips = tripsData.filter(t => t.odometerStart && t.odometerEnd);
+      const totalDist = validTrips.reduce((acc, trip) => acc + (trip.odometerEnd - trip.odometerStart), 0);
+      return validTrips.length > 0 ? (totalDist / validTrips.length).toFixed(1) : "0";
+    })();
+
+    res.json({
+    id: user?.id || driverId,
+    name: user?.fullname || "Unknown",
+    company: "Inyatsi",
+    phone: driver?.contact || "N/A",
+    totalTrips,
+    hoursLogged: hoursLogged.toFixed(1),
+    avgDistance: Number(avgDistance),
+  });
+
+  } catch (err) {
+    console.error("Error fetching driver profile:", err);
+    res.status(500).json({ error: "Failed to get driver profile" });
+  }
+});
+
+
+/** POST /api/admin/drivers/add
+ * 
+ * Description:
+ *  - Creates a new driver
+ * 
+ * Request body:
+ * {
+ *  "fullname": "string",
+ *  "username": "string",
+ *  "password": "string",
+ *  "contact" : "string",
+ *  "entityId": "string"
+ * }
+ * 
+ * Responses:
+ * 201 - Driver created successfully
+ * 400 - Invalid input
+ * 409 - Username already exists
+ * 500 - Server error
+ * 
+ */
 router.post('/drivers/add', async (req, res) => {
-  const { fullname, username, password, contact, entityId } = req.body; // Match frontend payload
-
+  const { fullname, username, password, contact, entityId } = req.body;
   try {
     // Validate required fields
     if (!fullname || !fullname.trim()) {
@@ -52,7 +248,7 @@ router.post('/drivers/add', async (req, res) => {
       .where(eq(usersTable.username, username));
 
     if (existing.length > 0) {
-      return res.status(400).json({ error: 'Username already taken' });
+      return res.status(409).json({ error: 'Username already taken' });
     }
 
     // Hash password
@@ -64,7 +260,7 @@ router.post('/drivers/add', async (req, res) => {
       .values({
         username: username.trim(),
         password: hashedPassword,
-        fullname: fullname.trim(), // Ensure non-null and trimmed
+        fullname: fullname.trim(), 
         role: "driver",
         created_at: new Date(),
         updated_at: new Date(),
@@ -73,7 +269,7 @@ router.post('/drivers/add', async (req, res) => {
 
     // Insert into drivers table
     await db.insert(drivers).values({
-      id: user.id, // Assuming id is the foreign key linking users and drivers
+      id: user.id, 
       entityId,
       contact: contact.trim(),
     });
@@ -84,7 +280,148 @@ router.post('/drivers/add', async (req, res) => {
     res.status(500).json({ error: "Failed to add driver" });
   }
 });
-// ==== USERS ====
+
+
+/** PUT /api/admin/drivers/:id
+ * 
+ * Description:
+ *  - Modify driver details
+ * 
+ * Request Parameters:
+ * {
+ *    "driverId": "string"
+ * }
+ * 
+ * 
+ * Request body:
+ * {
+ *  "fullname": "string",
+ *  "contact" : "string",
+ *  "entityId": "string"
+ *  "status": "string",
+ * }
+ * 
+ * Responses:
+ * 400 - Failed to update driver
+ * 
+ */
+router.put('/drivers/:id', async (req, res) => {
+  const driverId = req.params.id;
+  const { fullname, contact, entityId, status } = req.body; // Updated to match frontend 'fullname'
+
+  try {
+    // Validate required fields
+    if (!fullname || !fullname.trim()) {
+      throw new Error('Full Name is required');
+    }
+    if (!contact || !contact.trim()) {
+      throw new Error('Contact is required');
+    }
+    if (!entityId) {
+      throw new Error('Entity ID is required');
+    }
+    if (!status) {
+      throw new Error('Status is required');
+    }
+
+    // Validate entityId exists
+    const entityResult = await db
+      .select({ id: entities.id })
+      .from(entities)
+      .where(eq(entities.id, entityId))
+      .limit(1);
+
+    if (entityResult.length === 0) {
+      throw new Error('Entity not found');
+    }
+
+    // Update usersTable (fullname and status)
+    const [updatedUser] = await db
+      .update(usersTable)
+      .set({
+        fullname: fullname.trim(),
+        status: status, // Only if status is added to schema
+        updatedAt: new Date(),
+      })
+      .where(eq(usersTable.id, driverId))
+      .returning();
+
+    if (!updatedUser) {
+      throw new Error('User not found or update failed');
+    }
+
+    // Update drivers table (contact and entityId)
+    const [updatedDriver] = await db
+      .update(drivers)
+      .set({
+        contact: contact.trim(),
+        entityId,
+      })
+      .where(eq(drivers.id, driverId))
+      .returning();
+
+    if (!updatedDriver) {
+      throw new Error('Driver update failed');
+    }
+
+    res.json({ message: "Driver updated successfully", data: { user: updatedUser, driver: updatedDriver } });
+  } catch (err) {
+    console.error("Update driver error:", err);
+    res.status(400).json({ message: err.message || "Failed to update driver" });
+  }
+});
+
+
+/** DELETE /api/admin/drivers/:id
+ * 
+ * Description:
+ *  - Delete a driver by id
+ * 
+ * Request Parameters:
+ * {
+ *    "driverId": "string"
+ * }
+ * 
+ * 
+ * 
+ * Responses:
+ * 200 - Driver successfully deleted
+ * 500 - Failed to delete driver
+ * 
+ */
+router.delete("/drivers/:id", async (req, res) => {
+  const driverId = req.params.id;
+
+  try {
+    // Delete from `drivers` table first (child)
+    await db.delete(drivers).where(eq(drivers.id, driverId));
+
+    // Then delete from `users` table (parent)
+    await db.delete(usersTable).where(eq(usersTable.id, driverId));
+
+    res.status(200).json({ message: "Driver deleted successfully" });
+  } catch (error) {
+    console.error("Delete driver error:", error);
+    res.status(500).json({ error: "Failed to delete driver" });
+  }
+});
+
+
+
+
+
+
+// ========================================== USER MANAGEMENT =======================================
+
+/** GET /api/admin/users
+ * 
+ * Description:
+ *  - Gets all users
+ * 
+ * Responses:
+ * 500 - Failed to fetch users
+ */
+
 router.get("/users", async (req, res) => {
   try {
     const allUsers = await db.select().from(usersTable);
@@ -94,6 +431,17 @@ router.get("/users", async (req, res) => {
   }
 });
 
+
+/** GET /api/admin/users/:id
+ * 
+ * Description:
+ *  - Gets specific user
+ * 
+ * Responses:
+ * 404 - User not found
+ * 500 - Failed to fetch user
+ * 
+ */
 router.get("/users/:id", async (req, res) => {
   try {
     const result = await db.select().from(users).where(eq(users.id, req.params.id));
@@ -103,6 +451,177 @@ router.get("/users/:id", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch user" });
   }
 });
+
+
+/** GET /api/admin/users
+ * 
+ * Description:
+ *  - Get all users
+ * 
+ * Responses:
+ * 500 - Internal Server Error!
+ */
+router.get("/users", async (req, res) => {
+  try {
+    const users = await db.select({
+      id: usersTable.id,
+      fullname: usersTable.fullname,
+      username: usersTable.username,
+      role: usersTable.role,
+    }).from(usersTable);
+
+    res.json(users);
+  } catch (err) {
+    console.error("Fetch users error:", err);
+    res.status(500).json({ message: "Failed to fetch users" });
+  }
+});
+
+
+/** POST /api/admin/users
+ * 
+ * Description:
+ *  - Add a user
+ * 
+ * Request body:
+ * {
+ *  "fullname": "string",
+ *  "username": "string",
+ *  "password": "string",
+ *  "role"    : "string"
+ * }
+ * 
+ * Responses:
+ * 201 - User created successfully
+ * 500 - Failed to create user
+ * 
+ */
+router.post("/users", async (req, res) => {
+
+  try {
+    const { fullname, username, password, role } = req.body;
+    
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = await db.insert(usersTable).values({
+      fullname,
+      username,
+      password: hashedPassword,
+      role 
+    }).returning();
+
+    res.status(201).json(newUser[0]);
+  } catch (err){
+    console.error(err);
+    res.status(500).json({ error: 'Could not create user'});
+  }
+})
+
+
+/** PUT /api/admin/users/:id
+ * 
+ * Description:
+ *  - Modify a user
+ * 
+ * 
+ * Request parameters:
+ * {
+ *  "id": "string"
+ * }
+ * 
+ * Request body:
+ * {
+ *  "password": "string",
+ *  "role"    : "string"
+ * }
+ * 
+ * Responses:
+ * 400 - Invalid Role
+ * 404 - User not found
+ * 500 - Failed to modify user
+ * 
+ */
+router.put("/users/:id", async (req, res) => {
+  const { id } = req.params;
+  const { role, password } = req.body;
+
+  // Validate role if provided
+  if (role && !["admin", "supervisor", "driver"].includes(role)) {
+    return res.status(400).json({ message: "Invalid role" });
+  }
+
+  try {
+    // Prepare the update object
+    const updateData = {};
+
+    if (role) {
+      updateData.role = role;
+    }
+
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      updateData.password = hashedPassword;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ message: "Nothing to update" });
+    }
+
+    const updated = await db
+      .update(usersTable)
+      .set(updateData)
+      .where(eq(usersTable.id, id))
+      .returning();
+
+    if (!updated.length) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json({ message: "User updated", user: updated[0] });
+  } catch (err) {
+    console.error("Update user error:", err);
+    res.status(500).json({ message: "Failed to update user" });
+  }
+});
+
+
+
+/** DELETE /api/users/:id
+ * 
+ * Description:
+ *  - Delete a specific user
+ * 
+ * Request body:
+ * {
+ *  "id" :"string"
+ * }
+ * 
+ * Responses:
+ * 404 - User not found
+ * 500 - Internal Server Error
+ */
+router.delete("/users/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const deleted = await db
+      .delete(usersTable)
+      .where(eq(usersTable.id, id))
+      .returning();
+
+    if (!deleted.length) return res.status(404).json({ message: "User not found" });
+
+    res.json({ message: "User deleted", user: deleted[0] });
+  } catch (err) {
+    console.error("Delete user error:", err);
+    res.status(500).json({ message: "Failed to delete user" });
+  }
+});
+
+
+
+
+
+
 
 // ==== ENTITIES ====
 // GET: Overview of entities and vehicles
@@ -183,6 +702,19 @@ router.get("/entities/:id/overview", async (req, res) => {
 });
 
 
+/**
+ * Get a specific entity
+ * GET /api/admin/entities/:id
+ * 
+ * Request body:
+ * {
+ *  "id": "string"
+ * }
+ * 
+ * Responses:
+ * 404 - Entity not found
+ * 500 - Failed to fetch entity
+ */
 router.get("/entities/:id", async (req, res) => {
   const { id } = req.params;
   try {
@@ -194,6 +726,15 @@ router.get("/entities/:id", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch entity" });
   }
 });
+
+
+/**
+ * Get all entities
+ * GET /api/admin/entities/:id
+ * 
+ * Responses:
+ * 500 - Failed to fetch entity
+ */
 
 router.get("/entities", async (req, res) => {
   try {
@@ -225,6 +766,25 @@ router.get("/summary", async (req, res) => {
 
 // admin.route.ts or vehicles.route.ts
 
+/**
+ * Create a vehicle
+ * POST /api/admin/vehicles
+ * 
+ * Request body:
+ * {
+ *  "plateNumber" : "string",
+ *  "model"       : "string",
+ *  "make"        : "string",
+ *  "status"      : "string",
+ *  "entityId"    : "string"
+ * }
+ * 
+ * Responses:
+ * 201 - Vehicle created successfully
+ * 400 - Invalid input
+ * 500 - Internal Server Error ( Failed to create vehicle )
+ * 
+ */
 router.post("/vehicles", async (req, res) => {
   const { plateNumber, model, make, status, entityId } = req.body;
 
@@ -245,6 +805,10 @@ router.post("/vehicles", async (req, res) => {
   }
 });
 
+
+/**
+ * Create a new entity
+ */
 
 router.post("/entities", async (req, res) => {
   try {
@@ -332,122 +896,11 @@ router.get("/fuel-logs", async (req, res) => {
   }
 });
 
-router.post("/users", async (req, res) => {
-
-  try {
-    const { fullname, username, password, role } = req.body;
-    
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = await db.insert(usersTable).values({
-      fullname,
-      username,
-      password: hashedPassword,
-      role 
-    }).returning();
-
-    res.status(201).json(newUser[0]);
-  } catch (err){
-    console.error(err);
-    res.status(500).json({ error: 'Could not create user'});
-  }
-})
 
 
 
-// GET /api/admin/drivers
-router.get("/drivers", async (req, res) => {
-  try {
-    // First get all active driver IDs (those currently on trips)
-    const activeDriverResults = await db
-      .select({ 
-        driverId: trips.driverId 
-      })
-      .from(trips)
-      .where(
-        and(
-          isNotNull(trips.checkInTime),
-          isNull(trips.checkOutTime)
-        )
-      )
-      .groupBy(trips.driverId);
 
-    const activeDriverIds = activeDriverResults.map(d => d.driverId);
 
-    // Then get all drivers with their details
-    const allDrivers = await db
-      .select({
-        id: drivers.id,
-        name: usersTable.fullname,
-        contact: drivers.contact,
-        entityName: entities.name,
-      })
-      .from(drivers)
-      .leftJoin(usersTable, eq(drivers.id, usersTable.id))
-      .leftJoin(entities, eq(drivers.entityId, entities.id));
-
-    // Augment each driver with active status
-    const results = allDrivers.map(driver => ({
-      ...driver,
-      isActive: activeDriverIds.includes(driver.id)
-    }));
-
-    res.json(results);
-  } catch (err) {
-    console.error("Failed to fetch drivers:", err);
-    res.status(500).json({ error: "Failed to fetch drivers" });
-  }
-});
-
-// Assume you have a `drivers` and `trips` table in your schema
-router.get("/drivers/summary", async (req, res) => {
-  try {
-    // Get active drivers (currently on trips)
-    const activeDrivers = await db
-      .select({ 
-        driverId: trips.driverId 
-      })
-      .from(trips)
-      .where(
-        and(
-          isNotNull(trips.checkInTime),
-          isNull(trips.checkOutTime)
-        )
-      )
-      .groupBy(trips.driverId);
-
-    // Get total driver count
-    const totalDrivers = await db
-      .select({ count: sql`count(*)` })
-      .from(drivers);
-
-    // Get trip statistics - FIXED VERSION
-    const tripStats = await db
-      .select({
-        totalTrips: sql`count(*)`,
-        avgTrips: sql`ROUND(avg(count)::numeric, 1)`
-      })
-      .from(
-        db
-          .select({
-            driverId: trips.driverId,
-            count: sql`count(*)`.mapWith(Number)
-          })
-          .from(trips)
-          .groupBy(trips.driverId)
-          .as("driver_trips")
-      );
-
-    res.json({
-      totalDrivers: Number(totalDrivers[0].count),
-      activeDrivers: activeDrivers.length,
-      avgTripsPerDriver: tripStats[0].avgTrips || 0,
-      totalTrips: tripStats[0].totalTrips || 0
-    });
-  } catch (err) {
-    console.error("Failed to load driver summary:", err);
-    res.status(500).json({ error: "Failed to fetch driver summary" });
-  }
-});
 // GET /api/admin/vehicles
 router.get("/vehicles", async (req, res) => {
   try {
@@ -524,71 +977,6 @@ router.put("/vehicles/:id", async (req, res) => {
 
 // src/routes/admin.route.
 
-router.put('/drivers/:id', async (req, res) => {
-  const driverId = req.params.id;
-  const { fullname, contact, entityId, status } = req.body; // Updated to match frontend 'fullname'
-
-  try {
-    // Validate required fields
-    if (!fullname || !fullname.trim()) {
-      throw new Error('Full Name is required');
-    }
-    if (!contact || !contact.trim()) {
-      throw new Error('Contact is required');
-    }
-    if (!entityId) {
-      throw new Error('Entity ID is required');
-    }
-    if (!status) {
-      throw new Error('Status is required');
-    }
-
-    // Validate entityId exists
-    const entityResult = await db
-      .select({ id: entities.id })
-      .from(entities)
-      .where(eq(entities.id, entityId))
-      .limit(1);
-
-    if (entityResult.length === 0) {
-      throw new Error('Entity not found');
-    }
-
-    // Update usersTable (fullname and status)
-    const [updatedUser] = await db
-      .update(usersTable)
-      .set({
-        fullname: fullname.trim(),
-        status: status, // Only if status is added to schema
-        updatedAt: new Date(),
-      })
-      .where(eq(usersTable.id, driverId))
-      .returning();
-
-    if (!updatedUser) {
-      throw new Error('User not found or update failed');
-    }
-
-    // Update drivers table (contact and entityId)
-    const [updatedDriver] = await db
-      .update(drivers)
-      .set({
-        contact: contact.trim(),
-        entityId,
-      })
-      .where(eq(drivers.id, driverId))
-      .returning();
-
-    if (!updatedDriver) {
-      throw new Error('Driver update failed');
-    }
-
-    res.json({ message: "Driver updated successfully", data: { user: updatedUser, driver: updatedDriver } });
-  } catch (err) {
-    console.error("Update driver error:", err);
-    res.status(400).json({ message: err.message || "Failed to update driver" });
-  }
-});
 
 // GET /api/admin/vehicles/:id
 router.get("/vehicles/:id", async (req, res) => {
@@ -610,23 +998,6 @@ router.get("/vehicles/:id", async (req, res) => {
 });
 
 
-// DELETE a driver by ID
-router.delete("/drivers/:id", async (req, res) => {
-  const driverId = req.params.id;
-
-  try {
-    // Delete from `drivers` table first (child)
-    await db.delete(drivers).where(eq(drivers.id, driverId));
-
-    // Then delete from `users` table (parent)
-    await db.delete(usersTable).where(eq(usersTable.id, driverId));
-
-    res.status(200).json({ message: "Driver deleted successfully" });
-  } catch (error) {
-    console.error("Delete driver error:", error);
-    res.status(500).json({ error: "Failed to delete driver" });
-  }
-});
 
 
 router.delete("/entities/:id", async (req, res) => {
@@ -775,48 +1146,6 @@ router.get("/drivers/utilization/details", async (req, res) => {
 });
 
 
-router.get("/drivers/:id", async (req, res) => {
-  const driverId = req.params.id;
-
-  try {
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, driverId));
-    const [driver] = await db.select().from(drivers).where(eq(drivers.id, driverId));
-
-    const tripsData = await db
-      .select()
-      .from(trips)
-      .where(eq(trips.driverId, driverId));
-
-    const totalTrips = tripsData.length;
-    const hoursLogged = tripsData.reduce((acc, trip) => {
-      if (trip.checkInTime && trip.checkOutTime) {
-        const duration = (new Date(trip.checkOutTime) - new Date(trip.checkInTime)) / 3600000;
-        return acc + duration;
-      }
-      return acc;
-    }, 0);
-
-    const avgDistance = (() => {
-      const validTrips = tripsData.filter(t => t.odometerStart && t.odometerEnd);
-      const totalDist = validTrips.reduce((acc, trip) => acc + (trip.odometerEnd - trip.odometerStart), 0);
-      return validTrips.length > 0 ? (totalDist / validTrips.length).toFixed(1) : "0";
-    })();
-
-    res.json({
-    id: user?.id || driverId,
-    name: user?.fullname || "Unknown",
-    company: "Inyatsi",
-    phone: driver?.contact || "N/A",
-    totalTrips,
-    hoursLogged: hoursLogged.toFixed(1),
-    avgDistance: Number(avgDistance),
-  });
-
-  } catch (err) {
-    console.error("Error fetching driver profile:", err);
-    res.status(500).json({ error: "Failed to get driver profile" });
-  }
-});
 
 router.get("/drivers/:id/recent-trips", async (req, res) => {
   const driverId = req.params.id;
@@ -1052,87 +1381,12 @@ router.get("/dashboard/vehicle-utilization", async (req, res) => {
   }
 });
 
-// src/routes/admin.route.ts (or similar)
-router.get("/users", async (req, res) => {
-  try {
-    const users = await db.select({
-      id: usersTable.id,
-      fullname: usersTable.fullname,
-      username: usersTable.username,
-      role: usersTable.role,
-    }).from(usersTable);
-
-    res.json(users);
-  } catch (err) {
-    console.error("Fetch users error:", err);
-    res.status(500).json({ message: "Failed to fetch users" });
-  }
-});
 
 
 
-router.put("/users/:id", async (req, res) => {
-  const { id } = req.params;
-  const { role, password } = req.body;
-
-  // Validate role if provided
-  if (role && !["admin", "supervisor", "driver"].includes(role)) {
-    return res.status(400).json({ message: "Invalid role" });
-  }
-
-  try {
-    // Prepare the update object
-    const updateData = {};
-
-    if (role) {
-      updateData.role = role;
-    }
-
-    if (password) {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      updateData.password = hashedPassword;
-    }
-
-    if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({ message: "Nothing to update" });
-    }
-
-    const updated = await db
-      .update(usersTable)
-      .set(updateData)
-      .where(eq(usersTable.id, id))
-      .returning();
-
-    if (!updated.length) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    res.json({ message: "User updated", user: updated[0] });
-  } catch (err) {
-    console.error("Update user error:", err);
-    res.status(500).json({ message: "Failed to update user" });
-  }
-});
 
 
 
-router.delete("/users/:id", async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const deleted = await db
-      .delete(usersTable)
-      .where(eq(usersTable.id, id))
-      .returning();
-
-    if (!deleted.length) return res.status(404).json({ message: "User not found" });
-
-    res.json({ message: "User deleted", user: deleted[0] });
-  } catch (err) {
-    console.error("Delete user error:", err);
-    res.status(500).json({ message: "Failed to delete user" });
-  }
-});
 
 router.get("/me", authenticate, async (req, res) => {
   try {
@@ -1143,6 +1397,25 @@ router.get("/me", authenticate, async (req, res) => {
     res.status(500).json({ message: "Failed to fetch user" });
   }
 });
+
+
+/**
+ * PUT /api/admin/settings
+ * 
+ * Description:  
+ *  - Modify admin profile settings (username, fullname and password)
+ * 
+ * Request body: 
+ * {
+ *  "fullname": "string",
+ *  "username": "string",
+ *  "password": "string"
+ * }
+ * 
+ * Responses:
+ * 500 - Internal Server Error!
+ */
+
 
 router.put("/settings", authenticate, async (req, res) => {
   const { fullname, username, password } = req.body;

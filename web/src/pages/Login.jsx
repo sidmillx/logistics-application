@@ -2,17 +2,19 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import API_BASE_URL from "../config/config";
+import { Eye, EyeOff, Lock, User, Shield } from "lucide-react";
 
 const Login = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ username: "", password: "" });
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const handleChange = e => {
+  const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async e => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
@@ -44,123 +46,322 @@ const Login = () => {
     }
   };
 
-  // Clear both localStorage and sessionStorage
- 
-
   return (
-    <div style={styles.page}>
-      <div style={styles.container}>
-        <div>
-          <img
-            src="/icons/Inyatsi Logo.png"
-            alt="Logo"
-            style={{ width: 120, marginBottom: 5 }}
-          />
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "1rem",
+        background: "linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)",
+        position: "relative",
+      }}
+    >
+      {/* Background Pattern */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          opacity: 0.1,
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fillRule='evenodd'%3E%3Cg fill='%23ffffff' fillOpacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+          }}
+        />
+      </div>
+
+      {/* Login Card */}
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "28rem",
+          position: "relative",
+          zIndex: 10,
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+          borderRadius: "0.5rem",
+          border: "none",
+          backgroundColor: "white",
+        }}
+      >
+        {/* Card Header */}
+        <div
+          style={{
+            padding: "1.5rem",
+            paddingBottom: "1.5rem",
+            display: "flex",
+            flexDirection: "column",
+            gap: "1.5rem",
+          }}
+        >
+          {/* Logo */}
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            <div style={{ width: "10rem", height: "10rem", position: "relative" }}>
+              <img
+                src="/icons/Inyatsi Logo.png"
+                alt="Inyatsi Group Holdings"
+                style={{
+                  objectFit: "contain",
+                  width: "100%",
+                  height: "100%",
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Header */}
+          <div
+            style={{
+              textAlign: "center",
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.5rem",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "0.5rem",
+                marginBottom: "0.5rem",
+              }}
+            >
+              <Shield style={{ width: "1.25rem", height: "1.25rem", color: "#1e3c72" }} />
+              <h2
+                style={{
+                  fontSize: "1.5rem",
+                  fontWeight: 700,
+                  color: "#111827",
+                  marginBottom: 0,
+                }}
+              >
+                Admin Portal
+              </h2>
+            </div>
+            <p style={{ color: "#6b7280", margin: 0 }}>
+              Secure access to Inyatsi Group Holdings administration
+            </p>
+          </div>
         </div>
 
-        <h3 className="mb-3">ADMIN LOGIN</h3>
-        <p style={{ marginBottom: 20, color: "rgb(75 85 99)" }}>Please enter your credentials.</p>
-
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: 16 }}>
-            <input
-              type="text"
-              name="username"
-              placeholder="Username"
-              value={formData.username}
-              onChange={handleChange}
-              required
-              style={styles.input}
-            />
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <input
-              type="password"
-              name="password"
-              placeholder="Password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              style={styles.input}
-            />
-          </div>
-          <button
-            type="submit"
-            style={{
-              ...styles.button,
-              backgroundColor: loading ? "#999" : "#1e3c72",
-              cursor: loading ? "not-allowed" : "pointer",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-            disabled={loading}
+        {/* Card Content */}
+        <div style={{ padding: "1rem" }}>
+          <form
+            onSubmit={handleSubmit}
+            style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}
           >
-            {loading ? (
-              <div style={styles.loader}></div>
-            ) : (
-              "Login"
-            )}
-          </button>
+            {/* Username Field */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              <label
+                htmlFor="username"
+                style={{
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  color: "#374151",
+                }}
+              >
+                Username
+              </label>
+              <div style={{ position: "relative" }}>
+                <User
+                  style={{
+                    position: "absolute",
+                    left: "0.75rem",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    width: "1rem",
+                    height: "1rem",
+                    color: "#9ca3af",
+                  }}
+                />
+                <input
+                  id="username"
+                  name="username"
+                  type="text"
+                  value={formData.username}
+                  onChange={handleChange}
+                  style={{
+                    paddingLeft: "2.5rem",
+                    height: "3rem",
+                    width: "90%",
+                    borderRadius: "0.375rem",
+                    borderWidth: "1px",
+                    borderColor: "#e5e7eb",
+                    outline: "none",
+                    fontSize: "0.875rem",
+                    color: "#111827",
+                    backgroundColor: "white",
+                  }}
+                  placeholder="Enter your username"
+                  required
+                />
+              </div>
+            </div>
 
-          
-        </form>
+            {/* Password Field */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              <label
+                htmlFor="password"
+                style={{
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  color: "#374151",
+                }}
+              >
+                Password
+              </label>
+              <div style={{ position: "relative" }}>
+                <Lock
+                  style={{
+                    position: "absolute",
+                    left: "0.75rem",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    width: "1rem",
+                    height: "1rem",
+                    color: "#9ca3af",
+                  }}
+                />
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  value={formData.password}
+                  onChange={handleChange}
+                  style={{
+                    paddingLeft: "2.5rem",
+                    paddingRight: "2.5rem",
+                    height: "3rem",
+                    width: "80%",
+                    borderRadius: "0.375rem",
+                    borderWidth: "1px",
+                    borderColor: "#e5e7eb",
+                    outline: "none",
+                    fontSize: "0.875rem",
+                    color: "#111827",
+                    backgroundColor: "white",
+                  }}
+                  placeholder="Enter your password"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: "absolute",
+                    right: "0.75rem",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: "#9ca3af",
+                    backgroundColor: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  {showPassword ? (
+                    <EyeOff style={{ width: "1rem", height: "1rem" }} />
+                  ) : (
+                    <Eye style={{ width: "1rem", height: "1rem" }} />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Login Button */}
+            <button
+              type="submit"
+              disabled={loading || !formData.username || !formData.password}
+              style={{
+                width: "100%",
+                height: "3rem",
+                color: "white",
+                fontWeight: 500,
+                transition: "all 0.2s",
+                opacity: loading || !formData.username || !formData.password ? 0.5 : 1,
+                backgroundColor: "#1e3c72",
+                borderRadius: "0.375rem",
+                border: "none",
+                cursor:
+                  loading || !formData.username || !formData.password
+                    ? "not-allowed"
+                    : "pointer",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                gap: "0.5rem",
+              }}
+            >
+              {loading ? (
+                <>
+                  <div
+                    style={{
+                      width: "1rem",
+                      height: "1rem",
+                      border: "2px solid white",
+                      borderTopColor: "transparent",
+                      borderRadius: "50%",
+                      animation: "spin 1s linear infinite",
+                    }}
+                  />
+                  Signing In...
+                </>
+              ) : (
+                "Sign In to Admin Portal"
+              )}
+            </button>
+          </form>
+
+          {/* Footer */}
+          <div
+            style={{
+              marginTop: "1.5rem",
+              paddingTop: "1.5rem",
+              borderTop: "1px solid #f3f4f6",
+            }}
+          >
+            <p
+              style={{
+                fontSize: "0.75rem",
+                textAlign: "center",
+                color: "#6b7280",
+              }}
+            >
+              Protected by enterprise-grade security
+            </p>
+          </div>
+        </div>
       </div>
+
+      {/* Bottom Branding */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: "1rem",
+          left: "50%",
+          transform: "translateX(-50%)",
+        }}
+      >
+        <p style={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "0.875rem" }}>
+          © {new Date().getFullYear()} Inyatsi Group Holdings. All rights reserved.
+        </p>
+      </div>
+
+      {/* Global styles for spinner animation */}
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
     </div>
   );
 };
-
-const styles = {
-  page: {
-    height: "100vh",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    background: "linear-gradient(135deg, #1e3c72, #2a5298)",
-  },
-  container: {
-    background: "#fff",
-    padding: 30,
-    borderRadius: 10,
-    boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)",
-    width: "100%",
-    maxWidth: 400,
-    textAlign: "center",
-  },
-  input: {
-    width: "92%",
-    padding: 12,
-    borderRadius: 6,
-    border: "1px solid #ccc",
-    outline: "none",
-    fontSize: 16,
-  },
-  button: {
-    padding: "12px",
-    width: "100%",
-    color: "#fff",
-    border: "none",
-    borderRadius: 6,
-    fontSize: 16,
-    height: 45,
-  },
-  loader: {
-    width: 20,
-    height: 20,
-    border: "3px solid #fff",
-    borderTop: "3px solid transparent",
-    borderRadius: "50%",
-    animation: "spin 1s linear infinite",
-  },
-};
-
-// Append global CSS for loader animation
-const styleSheet = document.createElement("style");
-styleSheet.innerText = `
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}`;
-document.head.appendChild(styleSheet);
 
 export default Login;
