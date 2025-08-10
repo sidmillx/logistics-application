@@ -130,7 +130,7 @@ const CheckOutScreen = () => {
 
         if (!tripId || !vehicleId) {
           Alert.alert('Error', ERROR_MESSAGES.TRIP_ERROR);
-          router.back();
+          router.replace('/');
         }
       } catch (error) {
         handleApiError(error, "Failed to load user information");
@@ -215,7 +215,7 @@ const handleCheckOut = async () => {
           text: "OK", 
           onPress: () => {
             if (onSuccess) onSuccess(); // Call the refresh callback
-            router.back();
+            // router.replace('/');
           }
         }
       ],
@@ -265,7 +265,7 @@ const handleCheckOut = async () => {
       <View style={styles.buttonContainer}>
         <Button
           mode="outlined"
-          onPress={() => router.back()}
+          onPress={() => router.replace('/')}
           style={styles.button}
           disabled={submitting}
         >

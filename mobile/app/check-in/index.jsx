@@ -253,7 +253,7 @@ const CheckInScreen = () => {
         "Vehicle checked in successfully!",
         [{ text: "OK",  onPress: () => {
             if (onSuccess) onSuccess(); // Call the refresh callback
-            router.back();
+            // router.replace('/');
           } }],
         { cancelable: false }
       );

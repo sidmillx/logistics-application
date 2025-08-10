@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   title: {
     marginBottom: 20,
     fontWeight: 'bold',
-    fontSize: 24, // Explicit size for headings
+    fontSize: 28, // Explicit size for headings
     color: '#1a1a1a' // Darker text for better readability
   },
   card: {

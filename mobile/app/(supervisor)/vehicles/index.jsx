@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
   title: {
     marginBottom: 20,
     fontWeight: 'bold',
-    fontSize: 32,
+    fontSize: 28,
     lineHeight: 32,
   },
   disabledButton: {

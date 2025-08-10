@@ -152,12 +152,12 @@ const styles = StyleSheet.create({
   title: {
     marginBottom: 10,
     fontWeight: 'bold',
-    fontSize: 32,
+    fontSize: 28,
     lineHeight: 32, // Good - unitless
   },
   subtitle: {
     marginBottom: 20,
-    fontSize: 16,
+    fontSize: 14,
     color: '#4B5563', // Equivalent to rgb(75, 85, 99) but as hex
   },
   cardsContainer: {

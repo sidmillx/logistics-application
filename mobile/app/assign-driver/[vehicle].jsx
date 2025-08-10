@@ -11,6 +11,8 @@ export default function AssignDriver() {
   const [visible, setVisible] = useState(false);
   const [drivers, setDrivers] = useState([]);
   const [selectedDriver, setSelectedDriver] = useState(null);
+  const [status, setStatus] = useState('Available'); // or whatever status you want
+
   // const [vehicleData, setVehicleData] = useState(null);
 
   const theme = useTheme();
@@ -78,7 +80,7 @@ export default function AssignDriver() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          driverId: selectedDriver.id,
+          driverId: selectedDriver ? selectedDriver.id : null,
           vehicleId: vehicle, // must be ID, not the vehicle object
         }),
       });
@@ -91,7 +93,7 @@ export default function AssignDriver() {
       }
 
       Alert.alert("Success", "Driver assigned to vehicle successfully!", [
-        { text: "OK", onPress: () => router.back() },
+        { text: "OK", onPress: () => router.replace('/') },
       ]);
     } catch (err) {
       console.error("Assignment error:", err);
