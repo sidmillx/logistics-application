@@ -1,8 +1,7 @@
 import express from 'express'; 
 import { ENV } from './config/env.js';
 import {db} from './config/db.js';
-// import { entitiesTable } from './db/schema.js';
-import * from './db/schema.js';
+import { entitiesTable, usersTable } from './db/schema.js';
 import cors from 'cors';
 import path from "path";
 
