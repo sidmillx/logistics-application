@@ -186,7 +186,8 @@ const VehicleManagement = () => {
   const columns = [
     { key: "plateNumber", title: "Plate Number" },
     { key: "make", title: "Make" },
-    { key: "model", title: "Model" },
+    { key: "model", title: "Class" },
+    { key: "plantNumber", title: "Plant Number" },
     { key: "entityName", title: "Entity"},
     {
       key: "status",
@@ -283,6 +284,15 @@ const VehicleManagement = () => {
             <input type="text" name="plateNumber" placeholder="Plate Number" required value={editVehicle?.plateNumber || ""} onChange={handleChange} style={{ width: "100%", padding: 8, marginBottom: 12 }} />
             <input type="text" name="make" placeholder="Make" required value={editVehicle?.make || ""} onChange={handleChange} style={{ width: "100%", padding: 8, marginBottom: 12 }} />
             <input type="text" name="model" placeholder="Model" required value={editVehicle?.model || ""} onChange={handleChange} style={{ width: "100%", padding: 8, marginBottom: 12 }} />
+            <input
+              type="text"
+              name="plantNumber"
+              placeholder="Plant Number"
+              value={editVehicle?.plantNumber || ""}
+              onChange={handleChange}
+              style={{ width: "100%", padding: 8, marginBottom: 12 }}
+            />
+
             <select name="status" value={editVehicle?.status || "available"} onChange={handleChange} required style={{ width: "100%", padding: 8, marginBottom: 12 }}>
               <option value="available">Available</option>
               <option value="in-use">In Use</option>
