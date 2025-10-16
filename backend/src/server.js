@@ -46,7 +46,7 @@ app.get('/api/health', (req, res) => {
 
 app.get("/api/test-db", async (req, res) => {
   try {
-    const result = await db.select().from(schema.usersTable).limit(1);
+    const result = await db.select().from(usersTable).limit(1);
     res.json({ success: true, data: result });
   } catch (error) {
     console.error("DB test failed:", error);
