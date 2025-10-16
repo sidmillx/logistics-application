@@ -10,6 +10,7 @@ import {
   fuelLogs,
   usersTable,
   drivers,
+  supervisors,
   vehicles
 } from "../db/schema.js";
 import { and, eq, isNotNull, sql, gte, lte, desc, isNull  } from "drizzle-orm";
@@ -786,7 +787,7 @@ router.get("/summary", async (req, res) => {
  * 
  */
 router.post("/vehicles", async (req, res) => {
-  const { plateNumber, model, make, status, entityId } = req.body;
+  const { plateNumber, model, make,  status, entityId, plantNumber } = req.body;
 
   if (!plateNumber || !model || !make || !status || !entityId) {
     return res.status(400).json({ error: "Missing required fields" });
@@ -795,7 +796,7 @@ router.post("/vehicles", async (req, res) => {
   try {
     const [vehicle] = await db
       .insert(vehicles)
-      .values({ plateNumber, model, make, status, entityId })
+      .values({ plateNumber, model, make, status, entityId, plantNumber })
       .returning();
 
     res.status(201).json(vehicle);
@@ -914,6 +915,7 @@ router.get("/vehicles", async (req, res) => {
         entityId: vehicles.entityId,
         entityName: entities.name,
         createdAt: vehicles.createdAt,
+        plantNumber: vehicles.plantNumber
       })
       .from(vehicles)
       .leftJoin(entities, eq(vehicles.entityId, entities.id));
@@ -959,12 +961,12 @@ router.delete("/vehicles/:id", async (req, res) => {
 
 router.put("/vehicles/:id", async (req, res) => {
   const { id } = req.params;
-  const { plateNumber, make, model, status } = req.body;
+  const { plateNumber, make, model, status, plantNumber } = req.body;
 
   try {
     await db
       .update(vehicles)
-      .set({ plateNumber, make, model, status })
+      .set({ plateNumber, make, model, status, plantNumber })
       .where(eq(vehicles.id, id));
     res.json({ message: "Vehicle updated successfully" });
   } catch (err) {
@@ -1441,5 +1443,254 @@ router.put("/settings", authenticate, async (req, res) => {
 
 
 
+
+// GET /api/admin/supervisor-assignments
+router.get("/supervisor-assignments", async (req, res) => {
+  try {
+    const assignments = await db
+      .select({
+        id: supervisions.id,
+        supervisorId: supervisions.supervisorId,
+        supervisorName: sql`(SELECT fullname FROM users WHERE id = ${supervisions.supervisorId})`,
+        driverId: supervisions.driverId,
+        driverName: sql`(SELECT fullname FROM users WHERE id = ${supervisions.driverId})`,
+        createdAt: supervisions.createdAt,
+      })
+      .from(supervisions);
+
+    res.json(assignments);
+  } catch (err) {
+    console.error("Error fetching supervisor assignments:", err);
+    res.status(500).json({ message: "Failed to fetch supervisor assignments" });
+  }
+});
+
+
+// POST /api/admin/supervisor-assignments
+router.post("/supervisor-assignments", async (req, res) => {
+  const { supervisorId, driverId } = req.body;
+
+  if (!supervisorId || !driverId) {
+    return res.status(400).json({ message: "Supervisor ID and Driver ID are required" });
+  }
+
+  try {
+    // Verify supervisor exists
+    const supervisor = await db
+      .select()
+      .from(usersTable)
+      .where(and(eq(usersTable.id, supervisorId), eq(usersTable.role, "supervisor")))
+      .limit(1);
+
+    // Verify driver exists
+    const driver = await db
+      .select()
+      .from(usersTable)
+      .where(and(eq(usersTable.id, driverId), eq(usersTable.role, "driver")))
+      .limit(1);
+
+    if (!supervisor.length || !driver.length) {
+      return res.status(400).json({ message: "Invalid supervisor or driver ID" });
+    }
+
+    // Check if assignment already exists
+    const existing = await db
+      .select()
+      .from(supervisions)
+      .where(and(eq(supervisions.supervisorId, supervisorId), eq(supervisions.driverId, driverId)))
+      .limit(1);
+
+    if (existing.length) {
+      return res.status(400).json({ message: "This driver is already assigned to this supervisor" });
+    }
+
+    const [newAssignment] = await db
+      .insert(supervisions)
+      .values({ supervisorId, driverId })
+      .returning();
+
+    res.status(201).json(newAssignment);
+  } catch (err) {
+    console.error("Error creating supervisor assignment:", err);
+    res.status(500).json({ message: "Failed to create supervisor assignment" });
+  }
+});
+
+
+// DELETE /api/admin/supervisor-assignments/:id
+router.delete("/supervisor-assignments/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const [deleted] = await db
+      .delete(supervisions)
+      .where(eq(supervisions.id, id))
+      .returning();
+
+    if (!deleted) {
+      return res.status(404).json({ message: "Assignment not found" });
+    }
+
+    res.json({ message: "Assignment deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting supervisor assignment:", err);
+    res.status(500).json({ message: "Failed to delete supervisor assignment" });
+  }
+});
+
+
+// GET all supervisors
+router.get("/supervisors", async (req, res) => {
+  try {
+    const data = await db
+      .select({
+        id: supervisors.id,
+        fullname: usersTable.fullname,
+        username: usersTable.username,
+        phoneNumber: supervisors.phoneNumber,
+        entityId: supervisors.entityId,
+      })
+      .from(supervisors)
+      .leftJoin(usersTable, eq(supervisors.userId, usersTable.id));
+
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Failed to fetch supervisors" });
+  }
+});
+
+// GET entities for dropdown
+router.get("/supervisors/entities", async (req, res) => {
+  try {
+    const data = await db.select().from(entities);
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch entities" });
+  }
+});
+
+// router.post("/supervisors", async (req, res) => {
+//   const { fullname, username, password, phoneNumber, region, entityId } = req.body;
+
+//   try {
+//     // case-insensitive username check
+//    const existing = await db
+//   .select()
+//   .from(usersTable)
+//   .where(eq(sql`LOWER(${usersTable.username})`, username.toLowerCase()))
+//   .limit(1);
+
+//     if (existing.length > 0) {
+//       return res.status(400).json({ message: "Username already exists" });
+//     }
+
+//     const hashedPassword = await bcrypt.hash(password, 10);
+
+//     // ✅ Wrap both inserts in a transaction
+//     const result = await db.transaction(async (tx) => {
+//       const [newUser] = await tx
+//         .insert(usersTable)
+//         .values({
+//           fullname,
+//           username,
+//           password: hashedPassword,
+//           role: "supervisor",
+//         })
+//         .returning({ id: usersTable.id });
+
+//       await tx.insert(supervisors).values({
+//         id: newUser.id,
+//         phone: phoneNumber,
+//         region,
+//         assignedEntityId: entityId,
+//       });
+
+//       return newUser;
+//     });
+
+//     res.json({ message: "Supervisor created successfully", id: result.id });
+//   } catch (error) {
+//     console.error("Failed to create supervisor:", error);
+//     res.status(500).json({ message: "Failed to create supervisor" });
+//   }
+// })
+
+
+
+router.post("/supervisors", async (req, res) => {
+  console.log("\nIncoming POST /supervisors request");
+  console.log("Request body:", req.body);
+
+  const { fullname, username, password, phoneNumber, region, entityId } = req.body;
+
+  try {
+    console.log("Step 1: Checking if username already exists...");
+    const existing = await db
+      .select()
+      .from(usersTable)
+      .where(eq(sql`LOWER(${usersTable.username})`, username.toLowerCase()))
+      .limit(1);
+
+    console.log("Existing user check result:", existing);
+
+    if (existing.length > 0) {
+      console.log("Username already exists:", username);
+      return res.status(400).json({ message: "Username already exists" });
+    }
+
+    console.log("Step 2: Hashing password...");
+    const hashedPassword = await bcrypt.hash(password, 10);
+    console.log("Password hashed successfully");
+
+    console.log("Step 3: Starting database transaction...");
+    const result = await db.transaction(async (tx) => {
+      console.log("Inserting into usersTable...");
+      const [newUser] = await tx
+        .insert(usersTable)
+        .values({
+          fullname,
+          username,
+          password: hashedPassword,
+          role: "supervisor",
+        })
+        .returning({ id: usersTable.id });
+
+      console.log("User inserted:", newUser);
+
+      console.log("Inserting into supervisors table...");
+      await tx.insert(supervisors).values({
+        id: newUser.id,
+        phone: phoneNumber,
+        region,
+        assignedEntityId: entityId,
+      });
+
+      console.log("Supervisor inserted successfully");
+      return newUser;
+    });
+
+    console.log("Step 4: Transaction complete. New supervisor ID:", result.id);
+    res.json({
+      message: "Supervisor created successfully",
+      id: result.id,
+    });
+  } catch (error) {
+    console.error("Failed to create supervisor:", error);
+    res.status(500).json({ message: "Failed to create supervisor" });
+  }
+});
+
+
+// DELETE supervisor
+router.delete("/supervisors/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.delete(supervisors).where(eq(supervisors.id, id));
+    res.json({ message: "Supervisor deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete supervisor" });
+  }
+});
 
 export default router;

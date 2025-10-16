@@ -1,0 +1,1 @@
+ALTER TABLE "vehicles" ADD COLUMN "plan_number" text;

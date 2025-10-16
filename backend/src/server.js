@@ -3,11 +3,12 @@ import { ENV } from './config/env.js';
 import {db} from './config/db.js';
 import { entitiesTable } from './db/schema.js';
 import cors from 'cors';
+import path from "path";
 
 import authRoutes from "./routes/auth.route.js";
 import adminRoutes from "./routes/admin.route.js";
 import mobileRoutes from "./routes/mobile.route.js";
-import uploadRoute from "./routes/upload.js";
+import uploadRoutes from "./routes/upload.js";
 
 const app = express();
 
@@ -18,9 +19,42 @@ app.use(cors({}));
 // app.use(cors({}))
 const PORT = ENV.PORT || 5000;
 
+// Serve images statically
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads'), {
+  setHeaders: (res, filePath) => {
+    const ext = path.extname(filePath);
+    const mimeTypes = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+    };
+    
+    if (mimeTypes[ext]) {
+      res.setHeader('Content-Type', mimeTypes[ext]);
+    }
+  }
+}));
+
+// Register upload route
+app.use("/api/upload", uploadRoutes);
+
+// TEST ROUTES
 app.get('/api/health', (req, res) => {
     res.status(200).json({success: true})
 });
+
+app.get("/api/test-db", async (req, res) => {
+  try {
+    const result = await db.select().from(schema.usersTable).limit(1);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error("DB test failed:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+
 
 app.post('/api/entities/add', async (req, res) => {
     try {
@@ -71,7 +105,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/mobile", mobileRoutes);
 app.use("/api/admin/reports", reportRoutes);
-app.use("/api/upload", uploadRoute);
+app.use("/api/upload", uploadRoutes);
 
 
 app.listen(PORT, () => {

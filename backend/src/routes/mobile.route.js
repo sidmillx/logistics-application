@@ -11,9 +11,10 @@ import {
   checkouts,
   trips,
   supervisions,
+  supervisors,
   drivers
 } from "../db/schema.js";
-import {  isNotNull, isNull, desc   } from "drizzle-orm";
+import {  isNotNull, isNull, desc, asc, inArray, or   } from "drizzle-orm";
 
 const router = express.Router();
 
@@ -50,23 +51,134 @@ import { sql, eq, gte } from "drizzle-orm";
 //   }
 // });
 
+
+// changed this uncomment after.
+// router.get("/supervisor/vehicles", authenticate, async (req, res) => {
+//   try {
+//     const result = await db.execute(sql`
+//         SELECT DISTINCT ON (v.id) v.*, u.fullname AS "driverName"
+//         FROM vehicles v
+//         LEFT JOIN assignments a ON a.vehicle_id = v.id
+//         LEFT JOIN users u ON a.driver_id = u.id
+//     `);
+
+//     console.log("Fetched vehicles:", result);
+
+//     res.json(result); 
+//   } catch (err) {
+//     console.error("Failed to fetch vehicles:", err);
+//     res.status(500).json({ error: "Failed to fetch vehicles" });
+//   }
+// });
+
+
+
+// router.get("/supervisor/vehicles", authenticate, async (req, res) => {
+//   try {
+//     const supervisorId = req.user.id;
+
+//     // 1️⃣ Get all drivers supervised by this supervisor
+//     const supervisedDrivers = await db
+//       .select({ driverId: supervisions.driverId })
+//       .from(supervisions)
+//       .where(eq(supervisions.supervisorId, supervisorId));
+
+//     const driverIds = supervisedDrivers.map((d) => d.driverId);
+
+//     // 2️⃣ If no supervised drivers, return empty list
+//     if (driverIds.length === 0) {
+//       return res.json([]);
+//     }
+
+//     // 3️⃣ Fetch all vehicles with their assigned drivers
+//     const results = await db
+//       .select({
+//         id: vehicles.id,
+//         plateNumber: vehicles.plateNumber,
+//         model: vehicles.model,
+//         make: vehicles.make,
+//         status: vehicles.status,
+//         driverName: users.fullname,
+//       })
+//       .from(vehicles)
+//       .leftJoin(assignments, eq(assignments.vehicleId, vehicles.id))
+//       .leftJoin(users, eq(assignments.driverId, users.id))
+//       .where(
+//         or(
+//           isNull(users.id), // include unassigned vehicles
+//           inArray(users.id, driverIds) // include vehicles assigned to supervised drivers
+//         )
+//       );
+
+//     res.json(results);
+//   } catch (err) {
+//     console.error("Failed to fetch supervisor vehicles:", err);
+//     res.status(500).json({ error: "Failed to fetch supervisor vehicles" });
+//   }
+// });
+
+
+
+
 router.get("/supervisor/vehicles", authenticate, async (req, res) => {
   try {
-    const result = await db.execute(sql`
-        SELECT DISTINCT ON (v.id) v.*, u.fullname AS "driverName"
-        FROM vehicles v
-        LEFT JOIN assignments a ON a.vehicle_id = v.id
-        LEFT JOIN users u ON a.driver_id = u.id
-    `);
+    const supervisorId = req.user.id;
 
-    console.log("Fetched vehicles:", result.rows);
+    // 1 Get the supervisor's entity
+    const [supervisor] = await db
+      .select({ entityId: supervisors.assignedEntityId })
+      .from(supervisors)
+      .where(eq(supervisors.id, supervisorId));
 
-    res.json(result.rows);
+    if (!supervisor || !supervisor.entityId) {
+      return res
+        .status(404)
+        .json({ error: "Supervisor has no assigned entity" });
+    }
+
+    const entityId = supervisor.entityId;
+
+    //  Fetch all vehicles belonging to that entity
+    const vehiclesList = await db
+      .select({
+        id: vehicles.id,
+        plateNumber: vehicles.plateNumber,
+        model: vehicles.model,
+        make: vehicles.make,
+        status: vehicles.status,
+        driverName: users.fullname,
+      })
+      .from(vehicles)
+      .leftJoin(assignments, eq(assignments.vehicleId, vehicles.id))
+      .leftJoin(users, eq(assignments.driverId, users.id))
+      .where(eq(vehicles.entityId, entityId));
+
+    //  Return results
+    res.json(vehiclesList);
   } catch (err) {
-    console.error("Failed to fetch vehicles:", err);
-    res.status(500).json({ error: "Failed to fetch vehicles" });
+    console.error("Failed to fetch supervisor vehicles:", err);
+    res.status(500).json({ error: "Failed to fetch supervisor vehicles" });
   }
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // src/routes/mobile.route.js
 // router.get("/supervisor/drivers", authenticate, async (req, res) => {
@@ -97,86 +209,170 @@ router.get("/supervisor/vehicles", authenticate, async (req, res) => {
 //     res.status(500).json({ error: "Failed to fetch drivers" });
 //   }
 // });
+
+
+// UNCOMMENT THIS ONE
+// router.get("/supervisor/drivers", authenticate, async (req, res) => {
+//   try {
+//     console.log("Fetching all drivers with last activity info and status");
+
+//     const drivers = await db.execute(sql`
+//       SELECT 
+//         u.id,
+//         u.fullname AS name,
+//         COUNT(t.id) AS trips,
+
+//         -- Last Check-in Time
+//         ci.checked_in_at AS last_checkin_time,
+//         ci.start_location AS last_checkin_location,
+
+//         -- Last Check-out Time
+//         co.checked_out_at AS last_checkout_time,
+//         co.end_location AS last_checkout_location,
+
+//         -- Status: on trip if active trip, else assigned if assigned vehicle, else unassigned
+//         CASE 
+//           WHEN at.active_trip_id IS NOT NULL THEN 'on trip'
+//           WHEN a.vehicle_id IS NOT NULL THEN 'assigned'
+//           ELSE 'unassigned'
+//         END AS status
+
+//       FROM users u
+
+//       LEFT JOIN trips t ON t.driver_id = u.id
+
+//       LEFT JOIN LATERAL (
+//         SELECT c.checked_in_at, c.start_location
+//         FROM checkins c
+//         WHERE c.driver_id = u.id
+//         ORDER BY c.checked_in_at DESC
+//         LIMIT 1
+//       ) ci ON true
+
+//       LEFT JOIN LATERAL (
+//         SELECT c.checked_out_at, c.end_location
+//         FROM checkouts c
+//         WHERE c.driver_id = u.id
+//         ORDER BY c.checked_out_at DESC
+//         LIMIT 1
+//       ) co ON true
+
+//       LEFT JOIN LATERAL (
+//         SELECT trip.id AS active_trip_id
+//         FROM trips trip
+//         WHERE trip.driver_id = u.id
+//           AND trip.check_out_time IS NULL
+//         LIMIT 1
+//       ) at ON true
+
+//       LEFT JOIN LATERAL (
+//         SELECT vehicle_id
+//         FROM assignments a2
+//         WHERE a2.driver_id = u.id
+//         LIMIT 1
+//       ) a ON true
+
+//       WHERE u.role = 'driver'
+
+//       GROUP BY 
+//         u.id, u.fullname, 
+//         ci.checked_in_at, ci.start_location, 
+//         co.checked_out_at, co.end_location,
+//         at.active_trip_id,
+//         a.vehicle_id
+
+//       ORDER BY u.fullname ASC
+//     `);
+
+//     // res.json(drivers.rows); // ----> REMOVE THIS 1.1
+//     res.json(drivers); // 1.2 KEEP THIS
+
+//       // new line
+//     // console.log("Raw DB response:", drivers);
+//   } catch (err) {
+//     console.error("Failed to fetch drivers:", err);
+//     res.status(500).json({ error: "Failed to fetch drivers" });
+//   }
+// });
+
 router.get("/supervisor/drivers", authenticate, async (req, res) => {
   try {
-    console.log("Fetching all drivers with last activity info and status");
+    const supervisorId = req.user.id; // Get the logged-in supervisor's ID
 
-    const drivers = await db.execute(sql`
-      SELECT 
-        u.id,
-        u.fullname AS name,
-        COUNT(t.id) AS trips,
+    console.log("Fetching drivers supervised by this supervisor with last activity info and status");
 
-        -- Last Check-in Time
-        ci.checked_in_at AS last_checkin_time,
-        ci.start_location AS last_checkin_location,
+    // Step 1: Get the driver IDs assigned to this supervisor
+    const supervisedDrivers = await db
+      .select({ driverId: supervisions.driverId })
+      .from(supervisions)
+      .where(eq(supervisions.supervisorId, supervisorId));
 
-        -- Last Check-out Time
-        co.checked_out_at AS last_checkout_time,
-        co.end_location AS last_checkout_location,
+    const driverIds = supervisedDrivers.map(d => d.driverId);
 
-        -- Status: on trip if active trip, else assigned if assigned vehicle, else unassigned
-        CASE 
-          WHEN at.active_trip_id IS NOT NULL THEN 'on trip'
-          WHEN a.vehicle_id IS NOT NULL THEN 'assigned'
-          ELSE 'unassigned'
-        END AS status
+    if (driverIds.length === 0) {
+      return res.json([]); // No drivers assigned to this supervisor
+    }
 
-      FROM users u
+    // Step 2: Fetch detailed info for only these drivers
+    const results = await db
+      .select({
+        id: users.id,
+        name: users.fullname,
+        trips: sql`(
+          SELECT COUNT(*) FROM trips t WHERE t.driver_id = users.id
+        )`.as("trips"),
+        last_checkin_time: sql`(
+          SELECT c.checked_in_at
+          FROM checkins c
+          WHERE c.driver_id = users.id
+          ORDER BY c.checked_in_at DESC
+          LIMIT 1
+        )`.as("last_checkin_time"),
+        last_checkin_location: sql`(
+          SELECT c.start_location
+          FROM checkins c
+          WHERE c.driver_id = users.id
+          ORDER BY c.checked_in_at DESC
+          LIMIT 1
+        )`.as("last_checkin_location"),
+        last_checkout_time: sql`(
+          SELECT c.checked_out_at
+          FROM checkouts c
+          WHERE c.driver_id = users.id
+          ORDER BY c.checked_out_at DESC
+          LIMIT 1
+        )`.as("last_checkout_time"),
+        last_checkout_location: sql`(
+          SELECT c.end_location
+          FROM checkouts c
+          WHERE c.driver_id = users.id
+          ORDER BY c.checked_out_at DESC
+          LIMIT 1
+        )`.as("last_checkout_location"),
+        status: sql`(
+          CASE
+            WHEN EXISTS (
+              SELECT 1 FROM trips t WHERE t.driver_id = users.id AND t.check_out_time IS NULL
+            ) THEN 'on trip'
+            WHEN EXISTS (
+              SELECT 1 FROM assignments a WHERE a.driver_id = users.id
+            ) THEN 'assigned'
+            ELSE 'unassigned'
+          END
+        )`.as("status")
+      })
+      .from(users)
+      .where(inArray(users.id, driverIds)) // Only supervised drivers
+      .orderBy(sql`users.fullname ASC`);
 
-      LEFT JOIN trips t ON t.driver_id = u.id
-
-      LEFT JOIN LATERAL (
-        SELECT c.checked_in_at, c.start_location
-        FROM checkins c
-        WHERE c.driver_id = u.id
-        ORDER BY c.checked_in_at DESC
-        LIMIT 1
-      ) ci ON true
-
-      LEFT JOIN LATERAL (
-        SELECT c.checked_out_at, c.end_location
-        FROM checkouts c
-        WHERE c.driver_id = u.id
-        ORDER BY c.checked_out_at DESC
-        LIMIT 1
-      ) co ON true
-
-      LEFT JOIN LATERAL (
-        SELECT trip.id AS active_trip_id
-        FROM trips trip
-        WHERE trip.driver_id = u.id
-          AND trip.check_out_time IS NULL
-        LIMIT 1
-      ) at ON true
-
-      LEFT JOIN LATERAL (
-        SELECT vehicle_id
-        FROM assignments a2
-        WHERE a2.driver_id = u.id
-        LIMIT 1
-      ) a ON true
-
-      WHERE u.role = 'driver'
-
-      GROUP BY 
-        u.id, u.fullname, 
-        ci.checked_in_at, ci.start_location, 
-        co.checked_out_at, co.end_location,
-        at.active_trip_id,
-        a.vehicle_id
-
-      ORDER BY u.fullname ASC
-    `);
-
-    res.json(drivers.rows);
-    console.log(drivers.rows);
+    res.json(results);
   } catch (err) {
     console.error("Failed to fetch drivers:", err);
     res.status(500).json({ error: "Failed to fetch drivers" });
   }
 });
 
+  
 
 
 
@@ -189,7 +385,8 @@ router.get("/drivers", authenticate, async (req, res) => {
       WHERE role = 'driver'
       ORDER BY fullname ASC
     `);
-    res.json(result.rows);
+     //res.json(result.rows); -----> REMOVE THIS
+    res.json(result);  // ------> ADD THIS
   } catch (err) {
     console.error("Failed to fetch drivers:", err);
     res.status(500).json({ error: "Failed to fetch drivers" });
@@ -226,6 +423,9 @@ router.post("/supervisor/assignments", async (req, res) => {
       .select()
       .from(assignments)
       .where(eq(assignments.vehicleId, vehicleId));
+
+
+      console.log("Existing assignment:", existing);
 
     if (existing.length > 0) {
       return res.status(409).json({ error: "Vehicle is already assigned" });
@@ -368,9 +568,9 @@ router.get("/supervisor/vehicles/:id/details", authenticate, authorize("supervis
 
 
 
-    console.log("Query result for vehicle:", result.rows);
+    console.log("Query result for vehicle:", result); //---> removed rows here
 
-    const vehicle = result.rows[0];
+    const vehicle = result[0]; //---> removed rows here
 
     if (!vehicle) {
       return res.status(404).json({ error: "Vehicle not found" });
@@ -736,6 +936,15 @@ router.post("/driver/checkout", async (req, res) => {
       })
       .where(eq(trips.id, tripId));
 
+      
+    // Update vehicle status to "available"
+    await db.update(vehicles)
+      .set({
+        status: "available",
+      })
+      .where(eq(vehicles.id, vehicleId));
+
+
     res.status(201).json({
       message: "Check-out successful",
       checkout
@@ -788,6 +997,29 @@ router.post("/driver/fuel", async (req, res) => {
   }
 });
 
+
+// TESTING DRIVER FETCH ASSIGNED ROUTE:
+router.get("/test-drivers", authenticate, async (req, res) => {
+  try {
+    const supervisorId = req.user.id; // from JWT
+
+    const assignedDrivers = await db
+      .select({
+        driverId: users.id,
+        fullname: users.fullname,
+        username: users.username,
+        role: users.role,
+      })
+      .from(supervisions)
+      .innerJoin(users, eq(users.id, supervisions.driverId))
+      .where(eq(supervisions.supervisorId, supervisorId));
+
+    res.json(assignedDrivers);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to fetch assigned drivers" });
+  }
+});
 
 
 

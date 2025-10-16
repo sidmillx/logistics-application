@@ -33,6 +33,7 @@ export const vehicles = pgTable("vehicles", {
   model: text("model").notNull(),
   make: text("make").notNull(),
   status: text("status").notNull().default("available"), // e.g., available, in-use, maintenance
+  plantNumber: text('plant_number'),
   entityId: uuid("entity_id").references(() => entitiesTable.id),
   createdAt: timestamp("created_at").defaultNow(),
 });

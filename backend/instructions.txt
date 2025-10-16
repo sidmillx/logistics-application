@@ -1,0 +1,4 @@
+Uploading images to the server:
+1. Create an "uploads" folder under backend
+2. npm install multer
+3. work on "uploads.js" file
