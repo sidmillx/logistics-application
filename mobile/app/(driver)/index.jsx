@@ -78,8 +78,11 @@ const fetchData = async () => {
     ]);
 
     if (!token || !userString) {
-      throw new Error(ERROR_MESSAGES.AUTH_ERROR);
+      // No token means user is logged out, just return silently
+      setLoading(false);
+      return;
     }
+
 
     const user = JSON.parse(userString);
     setDriverName(user.fullname || user.username || 'Driver');
@@ -348,13 +351,13 @@ const fetchData = async () => {
         )
       )}
 
-      <Button
+      {/* <Button
         mode="outlined"
         onPress={handleLogout}
         style={styles.button}
       >
         Logout
-      </Button>
+      </Button> */}
     </View>
   );
 };

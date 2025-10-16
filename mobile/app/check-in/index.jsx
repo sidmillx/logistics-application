@@ -248,15 +248,40 @@ const CheckInScreen = () => {
       const data = await response.json();
       console.log("Check-in successful:", data);
       
-      Alert.alert(
-        "Success", 
-        "Vehicle checked in successfully!",
-        [{ text: "OK",  onPress: () => {
-            if (onSuccess) onSuccess(); // Call the refresh callback
-            // router.replace('/');
-          } }],
-        { cancelable: false }
-      );
+      // if (Platform.OS === 'web') {
+      //   router.replace('/(driver)');
+      // } else {
+      //   Alert.alert(
+      //     "Success",
+      //     "Vehicle checked in successfully!",
+      //     [{
+      //       text: "OK",
+      //       onPress: () => setTimeout(() => router.replace('/(driver)'), 300),
+      //     }]
+      //   );
+      // }
+      // Determine where to redirect based on role
+      const redirectPath =
+        userInfo.role === "supervisor"
+          ? "/(supervisor)/vehicles"
+          : "/(driver)";
+
+      if (Platform.OS === 'web') {
+        router.replace(redirectPath);
+      } else {
+        Alert.alert(
+          "Success",
+          "Vehicle checked in successfully!",
+          [{
+            text: "OK",
+            onPress: () => setTimeout(() => router.replace(redirectPath), 300),
+          }]
+        );
+      }
+
+
+
+
     } catch (err) {
       handleApiError(err, "Failed to complete check-in. Please try again.");
     } finally {

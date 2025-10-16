@@ -88,6 +88,7 @@ const LoginScreen = () => {
       await saveItem('user', JSON.stringify(data.user));
 
       console.log('Logged in user role:', data.user.role);
+      console.log('Token:', data.token);
 
       // Navigate based on role
       if (data.user.role === 'driver') {

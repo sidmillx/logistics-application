@@ -8,6 +8,7 @@ import { jwtDecode } from 'jwt-decode';
 import PropTypes from 'prop-types';
 import API_BASE_URL from '../../config/api';
 import { getItem } from '../../utils/storage';
+import { ScrollView } from 'react-native';
 
 // Constants for error messages and configuration
 const ERROR_MESSAGES = {
@@ -35,6 +36,9 @@ const LogFuelScreen = () => {
     fuelLocation: '',
     paymentRef: '',
   });
+   
+  const [userInfo, setUserInfo] = useState(null); // { id, role }
+
   const [driverId, setDriverId] = useState(null);
   const [receiptUri, setReceiptUri] = useState(null);
   const [receiptUrl, setReceiptUrl] = useState(null);
@@ -108,34 +112,37 @@ const LogFuelScreen = () => {
     validateField(name, value);
   };
 
-  useEffect(() => {
-    const getUserIdFromToken = async () => {
-      try {
-        let token = Platform.OS === 'web' 
-          ? localStorage.getItem('token') 
-          : await getItem('token');
-        
-        if (!token) {
-          Alert.alert("Error", ERROR_MESSAGES.TOKEN_ERROR);
-          router.replace('/');
-          return;
-        }
+ useEffect(() => {
+  const getUserInfoFromToken = async () => {
+    try {
+      let token = Platform.OS === 'web'
+        ? localStorage.getItem('token')
+        : await getItem('token');
 
-        setToken(token);
-        const decoded = jwtDecode(token);
-        
-        if (!decoded?.id) {
-          throw new Error("Invalid token payload");
-        }
-
-        setDriverId(decoded.id);
-      } catch (err) {
-        handleApiError(err, ERROR_MESSAGES.TOKEN_ERROR);
+      if (!token) {
+        Alert.alert("Error", ERROR_MESSAGES.TOKEN_ERROR);
+        router.replace('/');
+        return;
       }
-    };
 
-    getUserIdFromToken();
-  }, []);
+      setToken(token);
+
+      const decoded = jwtDecode(token);
+
+      if (!decoded?.id || !decoded?.role) {
+        throw new Error("Invalid token payload");
+      }
+
+      setDriverId(decoded.id);        // existing usage
+      setUserInfo({ id: decoded.id, role: decoded.role }); // new
+    } catch (err) {
+      handleApiError(err, ERROR_MESSAGES.TOKEN_ERROR);
+    }
+  };
+
+  getUserInfoFromToken();
+}, []);
+
 
   const pickReceipt = async () => {
     try {
@@ -172,42 +179,75 @@ const LogFuelScreen = () => {
     }
   };
 
-  const uploadReceipt = async () => {
-    if (!receiptUri) return;
+const uploadReceipt = async () => {
+  if (!receiptUri) return;
 
-    setUploading(true);
-    
-    try {
+  setUploading(true);
+
+  try {
+    let fileName, fileType, fileToUpload;
+
+    if (Platform.OS === 'web') {
+      // For web - get proper file name and type
       const response = await fetch(receiptUri);
       const blob = await response.blob();
       
-      if (blob.size > MAX_IMAGE_SIZE) {
-        throw new Error('Image size exceeds maximum limit');
-      }
-
-      const formData = new FormData();
-      formData.append('file', blob, 'receipt.jpg');
-
-      const res = await axios.post(`${API_BASE_URL}/api/upload`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        timeout: API_TIMEOUT,
-      });
+      // Extract file name from URI or use default
+      const uriParts = receiptUri.split('/');
+      fileName = uriParts.pop() || 'receipt.jpg';
       
-      if (!res.data?.url) {
-        throw new Error('Invalid response from server');
-      }
-
-      setReceiptUrl(res.data.url);
-      Alert.alert("Success", "Receipt uploaded successfully!");
-    } catch (err) {
-      handleApiError(err, ERROR_MESSAGES.UPLOAD_ERROR);
-    } finally {
-      setUploading(false);
+      // Use blob type or detect from filename
+      fileType = blob.type || 'image/jpeg';
+      
+      fileToUpload = new File([blob], fileName, { type: fileType });
+    } else {
+      // For mobile - extract proper file extension
+      const uriParts = receiptUri.split('.');
+      const fileExtension = uriParts[uriParts.length - 1].toLowerCase();
+      
+      // Map extension to MIME type
+      const mimeTypes = {
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+        png: 'image/png',
+        gif: 'image/gif',
+      };
+      
+      fileType = mimeTypes[fileExtension] || 'image/jpeg';
+      fileName = `receipt-${Date.now()}.${fileExtension}`;
+      
+      fileToUpload = {
+        uri: receiptUri,
+        name: fileName,
+        type: fileType,
+      };
     }
-  };
 
+    console.log('Uploading file:', { fileName, fileType });
+
+    const formData = new FormData();
+    formData.append('image', fileToUpload);
+
+    const res = await axios.post(`${API_BASE_URL}/api/upload`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      timeout: API_TIMEOUT,
+    });
+
+    if (!res.data?.fileUrl) {
+      throw new Error('Invalid response from server');
+    }
+
+    setReceiptUrl(res.data.fileUrl);
+    Alert.alert('Success', 'Receipt uploaded successfully!');
+  } catch (err) {
+    handleApiError(err, ERROR_MESSAGES.UPLOAD_ERROR);
+    console.error('Upload error:', err.response?.data || err.message);
+  } finally {
+    setUploading(false);
+  }
+};
   const validateForm = () => {
     let isValid = true;
     Object.keys(formData).forEach(key => {
@@ -257,22 +297,38 @@ const LogFuelScreen = () => {
         timeout: API_TIMEOUT,
       });
 
+      
+
+
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
         throw new Error(errData.message || 'Failed to save fuel log');
       }
 
       const data = await response.json();
+
+      const redirectPath =
+            userInfo.role === "supervisor"
+              ? "/(supervisor)/vehicles"
+              : "/(driver)";
       
-      Alert.alert(
-        "Success", 
-        "Fuel log saved successfully!",
-        [{ text: "OK",  onPress: () => {
-            if (onSuccess) onSuccess(); // Call the refresh callback
-            // router.replace('/(supervisor)');
-          }}],
-        { cancelable: false }
-      );
+    if (Platform.OS === 'web') {
+  router.replace(redirectPath);
+} else {
+  Alert.alert(
+    "Success",
+    "Fuel log saved successfully!",
+    [{
+      text: "OK",
+      onPress: () => {
+        // if (onSuccess) onSuccess();
+        setTimeout(() => router.replace(redirectPath), 300); // <-- small delay fixes crash
+      },
+    }],
+    { cancelable: false }
+  );
+}
+
     } catch (err) {
       handleApiError(err, "Failed to save fuel log. Please try again.");
     } finally {
@@ -281,9 +337,15 @@ const LogFuelScreen = () => {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text variant="headlineSmall" style={styles.title}>Log Fuel Entry</Text>
-      <Text variant="bodyMedium" style={styles.subtitle}>Record fuel added to the vehicle</Text>
+  <ScrollView
+    contentContainerStyle={[
+      styles.container,
+      { backgroundColor: theme.colors.background }
+    ]}
+    showsVerticalScrollIndicator={false}
+  >
+    <Text variant="headlineSmall" style={styles.title}>Log Fuel Entry</Text>
+    <Text variant="bodyMedium" style={styles.subtitle}>Record fuel added to the vehicle</Text>
 
       <TextInput
         label="Litres Added *"
@@ -385,7 +447,7 @@ const LogFuelScreen = () => {
           {submitting ? 'Saving...' : 'Save'}
         </Button>
       </View>
-    </View>
+     </ScrollView>
   );
 };
 

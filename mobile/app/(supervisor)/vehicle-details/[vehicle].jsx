@@ -39,6 +39,7 @@ export default function VehicleDetails() {
         
         console.log('Fetched details new:', JSON.stringify(data, null, 2));        
         setVehicleDetails(data);
+        console.log('Vehicle details structure:', vehicleDetails);
       } catch (err) {
         console.error("Fetch vehicle details error:", err);
         Alert.alert("Error", "Could not load vehicle details");
@@ -63,7 +64,7 @@ export default function VehicleDetails() {
       tripId: vehicleDetails?.trip_id || '',
       vehicleId,
       vehicleName,
-      odometer: vehicleDetails?.current_odometer || '',
+      odometer: vehicleDetails?.start_odometer || '',
       currentDriver: vehicleDetails?.current_driver || '',
       driverId: vehicleDetails?.driver_id || '',
       onSuccess: ""
@@ -78,9 +79,14 @@ export default function VehicleDetails() {
   });
   };
 
-  // Determine if vehicle is checked in (based on your schema)
-  const isCheckedIn = vehicleDetails?.checked_in_at && !vehicleDetails?.check_out_time;
+  // Determine if vehicle is checked in (based on schema)
+// const isCheckedIn =
+//   vehicleDetails?.checked_in_at &&
+//   !(vehicleDetails?.check_out_time || vehicleDetails?.checkOutTime);
+
   const hasCurrentTrip = !!vehicleDetails?.trip_id;
+  const isCheckedIn = !!vehicleDetails?.trip_id;
+
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -97,16 +103,23 @@ export default function VehicleDetails() {
         <View style={styles.vehicleStatusContainer}>
           {/* Last Check-in */}
           <View style={styles.vehicleStatusItem}>
-            <Clock size={20} color="#00204D" />
-            <View style={styles.vehicleStatusTextContainer}>
-              <Text style={styles.vehicleStatusLabel}>Last Check-in</Text>
-              <Text style={styles.vehicleStatusValue}>
-                {vehicleDetails?.checked_in_at 
-                  ? new Date(vehicleDetails.checked_in_at).toLocaleString() 
-                  : 'N/A'}
-              </Text>
-            </View>
-          </View>
+  <Clock size={20} color="#00204D" />
+  <View style={styles.vehicleStatusTextContainer}>
+    <Text style={styles.vehicleStatusLabel}>
+      {hasCurrentTrip ? "Last Check-out" : "Last Check-in"}
+    </Text>
+    <Text style={styles.vehicleStatusValue}>
+      {hasCurrentTrip
+        ? vehicleDetails?.checked_out_at
+          ? new Date(vehicleDetails.checked_out_at).toLocaleString()
+          : "N/A"
+        : vehicleDetails?.checked_in_at
+          ? new Date(vehicleDetails.checked_in_at).toLocaleString()
+          : "N/A"}
+    </Text>
+  </View>
+</View>
+
 
           {/* Current Driver */}
           <View style={styles.vehicleStatusItem}>
@@ -125,7 +138,7 @@ export default function VehicleDetails() {
             <View style={styles.vehicleStatusTextContainer}>
               <Text style={styles.vehicleStatusLabel}>Odometer</Text>
               <Text style={styles.vehicleStatusValue}>
-                {vehicleDetails?.current_odometer ? `${vehicleDetails.current_odometer} km` : 'N/A km'}
+                {vehicleDetails?.start_odometer ? `${vehicleDetails.start_odometer} km` : 'N/A km'}
               </Text>
             </View>
           </View>

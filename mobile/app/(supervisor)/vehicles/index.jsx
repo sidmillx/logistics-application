@@ -20,44 +20,53 @@ export default function VehicleFleet() {
   };
 
   useEffect(() => {
-    const fetchVehicles = async () => {
-      try {
-        const token = await getToken();
-        if (!token) {
-          Alert.alert('Auth Error', 'No token found. Please log in again.');
-          router.replace('/login'); // Redirect to login if no token
-          return;
-        }
-
-        const response = await fetch(`${API_BASE_URL}/api/mobile/supervisor/vehicles`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!response.ok) {
-          const errData = await response.text();
-          console.error('Fetch vehicles failed:', errData);
-          Alert.alert('Error', 'Could not fetch vehicles.');
-          return;
-        }
-
-        const data = await response.json();
-        console.log("🚗 Vehicles from API:", data);
-
-        setVehicles(data);
-      } catch (error) {
-        console.error('Error fetching vehicles:', error);
-        Alert.alert('Error', 'Something went wrong while fetching vehicles.');
-      } finally {
-        setLoading(false);
+  const fetchVehicles = async () => {
+    try {
+      const token = await getToken();
+      if (!token) {
+        Alert.alert('Auth Error', 'No token found. Please log in again.');
+        router.replace('/login'); // Redirect to login if no token
+        return;
       }
-    };
 
-    fetchVehicles();
-  }, []);
+      const response = await fetch(`${API_BASE_URL}/api/mobile/supervisor/vehicles`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const text = await response.text(); // get raw text first
+      if (!text) {
+        console.warn('Empty response from server, using fallback');
+        setVehicles([]); // fallback empty array
+        return;
+      }
+
+      let data;
+      try {
+        data = JSON.parse(text); // parse safely
+      } catch (parseErr) {
+        console.error('Failed to parse vehicles JSON:', text, parseErr);
+        Alert.alert('Error', 'Received invalid data from server.');
+        setVehicles([]); // fallback
+        return;
+      }
+
+      console.log("🚗 Vehicles from API:", data);
+      setVehicles(data);
+
+    } catch (error) {
+      console.error('Error fetching vehicles:', error);
+      Alert.alert('Error', 'Something went wrong while fetching vehicles.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchVehicles();
+}, []);
 
   if (loading) {
     return (

@@ -206,7 +206,15 @@ const handleCheckOut = async () => {
 
     const data = await response.json();
     console.log("Check-out successful:", data);
+
+    const redirectPath =
+      userInfo.role === "supervisor"
+        ? "/(supervisor)/vehicles"
+        : "/(driver)";
     
+    if (Platform.OS === 'web') {
+            router.replace(redirectPath);
+          } else {
     Alert.alert(
       "Success", 
       "Vehicle checked out successfully!",
@@ -214,13 +222,16 @@ const handleCheckOut = async () => {
         { 
           text: "OK", 
           onPress: () => {
-            if (onSuccess) onSuccess(); // Call the refresh callback
-            // router.replace('/');
+            // if (onSuccess) onSuccess(); // Call the refresh callback
+            setTimeout(() => router.replace(redirectPath), 300); // redirect to driver home
           }
         }
       ],
       { cancelable: false } // Prevents dismissing by tapping outside
     );
+  }
+
+    // router.replace('/(driver)'); // redirect to driver home
   } catch (err) {
     handleApiError(err, "Failed to complete check-out. Please try again.");
   } finally {
