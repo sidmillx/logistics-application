@@ -19,6 +19,17 @@ app.use(cors({}));
 // app.use(cors({}))
 const PORT = ENV.PORT || 5000;
 
+app.get("/api/test-db", async (req, res) => {
+  try {
+    const result = await db.select().from(usersTable);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error("DB test failed:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+
 // Serve images statically
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads'), {
   setHeaders: (res, filePath) => {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import { View, StyleSheet, Alert, ScrollView } from 'react-native';
 import { Button, Card, Text, useTheme, ActivityIndicator } from 'react-native-paper';
 import { router } from 'expo-router';
 // import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -166,7 +166,11 @@ const fetchData = async () => {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <ScrollView 
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
       <Text variant="headlineSmall" style={styles.welcomeText}>
         Welcome {driverName}, to your dashboard
       </Text>
@@ -358,7 +362,7 @@ const fetchData = async () => {
       >
         Logout
       </Button> */}
-    </View>
+    </ScrollView>
   );
 };
 
@@ -369,7 +373,10 @@ DashboardScreen.propTypes = {
 
 const styles = StyleSheet.create({
   container: { 
-    flex: 1, 
+    flex: 1,
+  },
+  scrollContent: { 
+    flexGrow: 1,
     padding: 20 
   },
   welcomeText: { 

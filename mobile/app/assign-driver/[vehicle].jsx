@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, Platform, Alert, ScrollView, KeyboardAvoidingView } from 'react-native';
 import { Button, Menu, useTheme, Select } from 'react-native-paper';
 import { router, useLocalSearchParams } from 'expo-router';
 import API_BASE_URL from '../../config/api';
@@ -102,11 +102,20 @@ export default function AssignDriver() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-          <View style={styles.assignmentCard}>
+    <KeyboardAvoidingView 
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView 
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.assignmentCard}>
           <View style={styles.assignmentCardHeader}>
             <View style={styles.assignmentIconContainer}>
-             <Car />
+              <Car />
             </View>
             <Text style={styles.assignmentCardTitle}>Vehicle Details</Text>
           </View>
@@ -126,47 +135,61 @@ export default function AssignDriver() {
           </View>
         </View>
 
-      <Menu
-        visible={visible}
-        onDismiss={() => setVisible(false)}
-        anchor={
-          <Button
-            mode="outlined"
-            onPress={() => setVisible(true)}
-            style={styles.menuButton}
+        <View style={styles.menuContainer}>
+          <Menu
+            visible={visible}
+            onDismiss={() => setVisible(false)}
+            anchor={
+              <Button
+                mode="outlined"
+                onPress={() => setVisible(true)}
+                style={styles.menuButton}
+                contentStyle={styles.menuButtonContent}
+              >
+                {selectedDriver ? selectedDriver.fullname : "Select Driver"}
+              </Button>
+            }
+            style={styles.menuStyle}
           >
-            {selectedDriver ? selectedDriver.fullname : "Select Driver"}
-          </Button>
-        }
-      >
-        {drivers.map(driver => (
-          <Menu.Item
-            key={driver.id}
-            title={driver.fullname}
-            onPress={() => {
-              setSelectedDriver(driver);
-              setVisible(false);
-            }}
-          />
-        ))}
-      </Menu>
-      
+            <ScrollView 
+              style={styles.menuScrollView}
+              nestedScrollEnabled={true}
+            >
+              {drivers.map(driver => (
+                <Menu.Item
+                  key={driver.id}
+                  title={driver.fullname}
+                  onPress={() => {
+                    setSelectedDriver(driver);
+                    setVisible(false);
+                  }}
+                  style={styles.menuItem}
+                  titleStyle={styles.menuItemText}
+                />
+              ))}
+            </ScrollView>
+          </Menu>
+        </View>
 
-      <Button
-        mode="contained"
-        disabled={!selectedDriver}
-        onPress={handleAssign}
-        style={styles.assignButton}
-      >
-        Start Assignment
-      </Button>
-    </View>
+        <Button
+          mode="contained"
+          disabled={!selectedDriver}
+          onPress={handleAssign}
+          style={styles.assignButton}
+        >
+          Start Assignment
+        </Button>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     padding: 20,
   },
   title: {
@@ -177,11 +200,33 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     color: '#666',
   },
-  menuButton: {
+  menuContainer: {
+    minHeight: 60, // Ensure enough space for the menu
     marginBottom: 20,
+  },
+  menuButton: {
+    width: '100%',
+  },
+  menuButtonContent: {
+    height: 50,
+    justifyContent: 'center',
+  },
+  menuStyle: {
+    marginTop: 50, // Adjust based on your needs
+    maxHeight: 400, // Limit menu height
+  },
+  menuScrollView: {
+    maxHeight: 380, // Slightly less than menu height for padding
+  },
+  menuItem: {
+    height: 44, // Standard touch target height
+  },
+  menuItemText: {
+    fontSize: 16,
   },
   assignButton: {
     marginTop: 10,
+    marginBottom: 30, // Extra padding at bottom for better scrolling
   },
 
   assignmentCard: {
