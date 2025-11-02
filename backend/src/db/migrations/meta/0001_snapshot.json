@@ -1,6 +1,6 @@
 {
-  "id": "5eae73ad-9014-4fc2-bf4a-7af9775e50f7",
-  "prevId": "06b41888-65d3-470d-9024-ef6857daaaa7",
+  "id": "1e62594a-3aaf-4753-8749-fd8da8028327",
+  "prevId": "74f8d4fc-90db-4007-a54d-77b767a5b657",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -33,6 +33,13 @@
           "primaryKey": false,
           "notNull": false,
           "default": "now()"
+        },
+        "permanent": {
+          "name": "permanent",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
         }
       },
       "indexes": {},
@@ -111,11 +118,11 @@
           "primaryKey": false,
           "notNull": true
         },
-        "end_odometer": {
-          "name": "end_odometer",
-          "type": "integer",
+        "start_location": {
+          "name": "start_location",
+          "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "trip_purpose": {
           "name": "trip_purpose",
@@ -210,6 +217,18 @@
         },
         "performed_by_role": {
           "name": "performed_by_role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "end_odometer": {
+          "name": "end_odometer",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "end_location": {
+          "name": "end_location",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -400,15 +419,39 @@
         },
         "litres": {
           "name": "litres",
-          "type": "integer",
+          "type": "real",
           "primaryKey": false,
           "notNull": true
         },
         "cost": {
           "name": "cost",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "odometer": {
+          "name": "odometer",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "location": {
+          "name": "location",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payment_reference": {
+          "name": "payment_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "receipt_url": {
+          "name": "receipt_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "logged_by": {
           "name": "logged_by",
@@ -812,6 +855,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'available'"
+        },
+        "plant_number": {
+          "name": "plant_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "entity_id": {
           "name": "entity_id",

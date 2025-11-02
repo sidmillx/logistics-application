@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   welcomeText: { textAlign: 'center', marginBottom: 10, fontWeight: 'bold', color: '#333' },
   subtitle: { textAlign: 'center', marginBottom: 30, color: '#666' },
   input: { marginBottom: 5, backgroundColor: '#fff' },
-  loginButton: { marginTop: 20, paddingVertical: 5, borderRadius: 4 },
+  loginButton: { marginTop: 20, paddingVertical: 4, borderRadius: 4 },
   loginButtonContent: { height: 48 },
   loginButtonLabel: { fontSize: 16 },
   errorText: { color: 'red', marginBottom: 10, marginLeft: 5, fontSize: 12 },

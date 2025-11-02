@@ -1,15 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Platform, Alert } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, Platform, Alert, TouchableOpacity, ActivityIndicator as RNActivity } from 'react-native';
 import { Card, Button, useTheme, ActivityIndicator } from 'react-native-paper';
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import API_BASE_URL from '../../../config/api';
 import { getItem } from '../../../utils/storage';
-import { Car, Badge, User } from 'lucide-react-native';
+import { Car, Users } from 'lucide-react-native';
 
 export default function VehicleFleet() {
   const theme = useTheme();
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedTab, setSelectedTab] = useState('all');
 
   const getToken = async () => {
     if (Platform.OS === 'web') {
@@ -19,13 +22,15 @@ export default function VehicleFleet() {
     }
   };
 
-  useEffect(() => {
-  const fetchVehicles = async () => {
+  const fetchVehicles = async (showSpinner = true) => {
     try {
+      if (showSpinner) setLoading(true);
+      else setRefreshing(true);
+
       const token = await getToken();
       if (!token) {
         Alert.alert('Auth Error', 'No token found. Please log in again.');
-        router.replace('/login'); // Redirect to login if no token
+        router.replace('/login');
         return;
       }
 
@@ -37,36 +42,71 @@ export default function VehicleFleet() {
         },
       });
 
-      const text = await response.text(); // get raw text first
+      const text = await response.text();
       if (!text) {
         console.warn('Empty response from server, using fallback');
-        setVehicles([]); // fallback empty array
+        setVehicles([]);
         return;
       }
 
       let data;
       try {
-        data = JSON.parse(text); // parse safely
+        data = JSON.parse(text);
       } catch (parseErr) {
         console.error('Failed to parse vehicles JSON:', text, parseErr);
         Alert.alert('Error', 'Received invalid data from server.');
-        setVehicles([]); // fallback
+        setVehicles([]);
         return;
       }
 
-      console.log("🚗 Vehicles from API:", data);
+      console.log('🚗 Vehicles from API (on focus):', data);
       setVehicles(data);
-
     } catch (error) {
       console.error('Error fetching vehicles:', error);
       Alert.alert('Error', 'Something went wrong while fetching vehicles.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  fetchVehicles();
-}, []);
+  // ✅ Automatically refetch when page comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchVehicles();
+      return () => {}; // Cleanup not needed
+    }, [])
+  );
+
+  const getStatusStyle = (status) => {
+    switch (status) {
+      case 'in-use':
+        return styles.statusInUse;
+      case 'available':
+        return styles.statusAvailable;
+      case 'maintenance':
+        return styles.statusMaintenance;
+      default:
+        return styles.statusDefault;
+    }
+  };
+
+  const formatPlateNumber = (plate) => {
+    if (!plate) return 'N/A';
+    const match = plate.match(/^([A-Z]{3})(\d{3})([A-Z]{2})$/i);
+    if (match) {
+      return `${match[1].toUpperCase()} ${match[2]} ${match[3].toUpperCase()}`;
+    }
+    return plate.toUpperCase();
+  };
+
+  const filteredVehicles = vehicles.filter((v) => {
+    if (selectedTab === 'all') return true;
+    if (selectedTab === 'in-use') return v.status === 'in-use';
+    if (selectedTab === 'available') return v.status === 'available';
+    if (selectedTab === 'maintenance') return v.status === 'maintenance';
+    return true;
+  });
 
   if (loading) {
     return (
@@ -76,86 +116,89 @@ export default function VehicleFleet() {
     );
   }
 
-   const getStatusColor = (status) => {
-    switch (status) {
-      case "in-use":
-        // return "bg-green-100 text-green-800"
-        return styles.inUse;
-      case "available":
-        // return "bg-blue-100 text-blue-800"
-        return styles.available;
-      case "maintenance":
-        // return "bg-orange-100 text-orange-800"
-        return styles.maintenance;
-      default:
-        // return "bg-gray-100 text-gray-800"
-        return styles.default;
-    }
-  }
-
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text variant="headlineSmall" style={styles.title}>Vehicle Fleet</Text>
+      <Text style={styles.title}>Vehicle Fleet</Text>
+
+      {/* Tabs */}
+      <View style={styles.tabsContainer}>
+        {[
+          { key: 'all', label: 'All' },
+          { key: 'in-use', label: 'In Use' },
+          { key: 'available', label: 'Available' },
+          { key: 'maintenance', label: 'Maintenance' },
+        ].map((tab) => (
+          <TouchableOpacity
+            key={tab.key}
+            style={[styles.tabButton, selectedTab === tab.key && styles.activeTabButton]}
+            onPress={() => setSelectedTab(tab.key)}
+          >
+            <Text style={[styles.tabText, selectedTab === tab.key && styles.activeTabText]}>{tab.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       <FlatList
-        data={vehicles}
+        data={filteredVehicles}
+        keyExtractor={(item, index) => index.toString()}
+        contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
           <Card style={styles.card}>
-            <Card.Content>
-              {/* card header */}
-              <View style={styles.cardHeader}>
-                <View style={styles.vehicleInfo}>
-                  <View style={styles.vehicleIcon}>
-                    <Car size={24} style={{color: '#00204D'}} />
+            <View style={styles.cardInner}>
+              {/* Plate Number */}
+              <View style={styles.plateContainer}>
+                <View style={styles.plateBox}>
+                  <Text style={styles.plateText}>{formatPlateNumber(item.plateNumber)}</Text>
+                </View>
+                <View style={styles.plateDotLeft} />
+                <View style={styles.plateDotRight} />
+              </View>
+
+              {/* Vehicle Info */}
+              <View style={styles.vehicleInfoRow}>
+                <View style={styles.vehicleInfoLeft}>
+                  <View style={styles.iconWrapper}>
+                    <Car size={20} color="#6B7280" />
                   </View>
                   <View style={styles.vehicleDetails}>
-                    <Text style={styles.plate}>{item.plate_number}</Text>
-                    <Text style={styles.detail}>Make & Model: {item.make} {item.model}</Text>
+                    <Text style={styles.vehicleName}>
+                      {item.make} {item.model}
+                    </Text>
+                    <Text style={styles.vehicleType}>{item.model || 'Unknown Model'}</Text>
                   </View>
                 </View>
-                <Text style={getStatusColor(item.status)}>{item.status}</Text>
-              </View>
 
-              {/* VEHICLE STATS */}
-              <View style={styles.vehicleStats}>
-                {/* item 1 */}
-                <View style={styles.statItem}>
-                  <View style={styles.statLabel}>
-                    <User size={16} style={{color: 'rgb(156, 163, 175)'}}/>
-                    <Text style={styles.statText}>Driver</Text>
-                  </View>
-                  <Text style={styles.statValue}>{item.driverName || 'No driver assigned'}</Text>
-                </View>
-
-                {/* item 2 */}
-                <View style={styles.statItem}>
-                  <View style={styles.statLabel}>
-                    <User size={16} style={{color: 'rgb(156, 163, 175)'}}/>
-                    <Text style={styles.statText}>Driver</Text>
-                  </View>
-                  <Text style={styles.statValue}>{item.driverName || 'No driver assigned'}</Text>
+                <View style={[styles.statusBadge, getStatusStyle(item.status)]}>
+                  <Text style={styles.statusText}>
+                    {item.status === 'in-use'
+                      ? 'In Use'
+                      : item.status === 'maintenance'
+                      ? 'Maintenance'
+                      : 'Available'}
+                  </Text>
                 </View>
               </View>
-              
-              
-            
-              {/* <Text style={styles.detail}>Created: {new Date(item.created_at).toLocaleDateString()}</Text> */}
 
+              {/* Driver Info */}
+              <View style={styles.driverSection}>
+                <View style={styles.driverRow}>
+                  <Users size={16} color="#6B7280" />
+                  <Text style={styles.driverLabel}>Driver:</Text>
+                  <Text style={[styles.driverName, !item.driverName && styles.driverEmpty]}>
+                    {item.driverName ? item.driverName : 'No driver assigned'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Action Button */}
               <Button
                 mode={item.driverName ? 'contained' : 'outlined'}
                 onPress={() => {
-                 if (item.status === 'maintenance') {
+                  if (item.status === 'maintenance') {
                     Alert.alert('Notice', 'Vehicle under maintenance');
                     return;
                   }
                   if (item.driverName) {
-                    // router.push({
-                    //   pathname: '/vehicle-details',
-                    //   params: {
-                    //     vehicleId: item.id,
-                    //     vehicleName: item.driverName,
-                    //   },
-                    // });
                     router.push({
                       pathname: `/vehicle-details/${item.id}`,
                       params: {
@@ -163,20 +206,14 @@ export default function VehicleFleet() {
                         vehicleName: item.driverName,
                       },
                     });
-
                   } else {
                     router.push({
                       pathname: `/assign-driver/${item.id}`,
-                      params: {
-                        plateNumber: item.plate_number, 
-                      },
+                      params: { plateNumber: item.plateNumber },
                     });
                   }
                 }}
-                style={[
-                  styles.actionButton,
-                  item.status === 'maintenance' && styles.disabledButton, // add disabled style
-                ]}
+                style={styles.actionButton}
               >
                 {item.status === 'maintenance'
                   ? 'Vehicle Under Maintenance'
@@ -184,13 +221,17 @@ export default function VehicleFleet() {
                   ? 'View Details'
                   : 'Assign Driver'}
               </Button>
-            </Card.Content>
+            </View>
           </Card>
-
         )}
-        keyExtractor={(item, index) => index.toString()}
-        contentContainerStyle={styles.listContent}
       />
+
+      {/* ✅ Smooth Refresh Overlay */}
+      {refreshing && (
+        <View style={styles.overlay}>
+          <RNActivity size="large" color="#002246" />
+        </View>
+      )}
     </View>
   );
 }
@@ -201,135 +242,179 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   title: {
-    marginBottom: 20,
-    fontWeight: 'bold',
-    fontSize: 28,
-    lineHeight: 32,
+    marginBottom: 16,
+    fontWeight: '700',
+    fontSize: 26,
+    color: '#111827',
   },
-  disabledButton: {
-  backgroundColor: '#ccc',   // lighter gray bg
-  color: '#666',             // gray text
-},
-  card: {
-    marginBottom: 15,
-    borderRadius: 5,
-    backgroundColor: '#fff',
-    elevation: 3
-  },
-  cardHeader: {
-    flex: 1,
+  tabsContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 20,
-    fontWeight: 'bold',
+    marginBottom: 16,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    padding: 4,
   },
-  vehicleInfo: {
+  tabButton: {
     flex: 1,
-    flexDirection: 'row',
+    backgroundColor: '#E5E7EB',
+    paddingVertical: 10,
+    borderRadius: 50,
     alignItems: 'center',
-    marginRight: 10 // Replaces gap: 10
+    marginHorizontal: 3,
   },
-  vehicleIcon: {
-    padding: 10,
-    backgroundColor: 'rgba(0, 32, 77, 0.1)',
-    borderRadius: 99999
+  activeTabButton: {
+    backgroundColor: '#002246',
   },
-  vehicleId: {
-    fontWeight: 'bold',
+  tabText: {
+    color: '#374151',
+    fontWeight: '600',
+    fontSize: 12,
   },
-  location: {
-    marginBottom: 10,
-    color: '#666',
-  },
-  actionButton: {
-    width: '100%',    
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    // backgroundColor: '#00204d',
-    color: '#fff',
-    borderRadius: 5,
-    fontWeight: '500',
-    marginTop: 10,
+  activeTabText: {
+    color: '#FFFFFF',
   },
   listContent: {
     paddingBottom: 20,
   },
-  plate: {
+  card: {
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 5,
+  },
+  cardInner: {
+    padding: 16,
+    gap: 16,
+  },
+  plateText: {
+    color: '#fff',
+    fontSize: 20,
     fontWeight: '700',
-    fontSize: 18,
-    marginBottom: 4,
-    color: '#00204D'
+    letterSpacing: 2,
   },
-  detail: {
-    fontSize: 14,
-    marginBottom: 2,
-    color: 'rgb(75, 85, 99)',
+  plateContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    alignSelf: 'center',
   },
-  vehicleStats: {
-    flex: 1,
-    flexDirection: 'column',
-    marginBottom: 10
+  plateBox: {
+    backgroundColor: '#002246',
+    borderWidth: 3,
+    borderColor: '#002246',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
   },
-  statText: {
-    color: 'rgb(75, 85, 99)',
+  plateDotLeft: {
+    position: 'absolute',
+    left: -4,
+    top: '50%',
+    transform: [{ translateY: -4 }],
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#E5E7EB',
   },
-  statItem: {
+  plateDotRight: {
+    position: 'absolute',
+    right: -4,
+    top: '50%',
+    transform: [{ translateY: -4 }],
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#E5E7EB',
+  },
+  vehicleInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10 // Adds spacing instead of gap
   },
-  statLabel: {
+  vehicleInfoLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 5, // Replaces gap: 5
-    fontSize: 14,
-    color: 'rgb(75, 85, 99)'
+    flex: 1,
+    gap: 10,
   },
-  statValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#00204d'
-  },
-  available: {
-    backgroundColor: '#DCFCE7',
-    color: '#166534',
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    borderRadius: 9999,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '500',
-  },
-  maintenance: {
-    backgroundColor: '#DBEAFE',
-    color: '#1E40AF',
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    borderRadius: 9999,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '500',
-  },
-  inUse: {
-    backgroundColor: '#FFEDD5',
-    color: '#9A3412',
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    borderRadius: 9999,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '500',
-  },
-  default: {
+  iconWrapper: {
     backgroundColor: '#F3F4F6',
-    color: '#1F2937',
+    borderRadius: 8,
+    padding: 8,
+  },
+  vehicleDetails: {
+    flex: 1,
+  },
+  vehicleName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  vehicleType: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  statusBadge: {
     paddingVertical: 4,
     paddingHorizontal: 12,
     borderRadius: 9999,
-    fontSize: 12,
-    lineHeight: 16,
+  },
+  statusText: {
     fontWeight: '500',
-  }
+    fontSize: 12,
+  },
+  statusAvailable: {
+    backgroundColor: '#ECFDF5',
+  },
+  statusInUse: {
+    backgroundColor: '#FEF3C7',
+  },
+  statusMaintenance: {
+    backgroundColor: '#DBEAFE',
+  },
+  statusDefault: {
+    backgroundColor: '#F3F4F6',
+  },
+  driverSection: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 12,
+  },
+  driverRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  driverLabel: {
+    color: '#6B7280',
+    fontSize: 13,
+  },
+  driverName: {
+    color: '#111827',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  driverEmpty: {
+    fontStyle: 'italic',
+    color: '#9CA3AF',
+  },
+  actionButton: {
+    width: '100%',
+    marginTop: 8,
+    borderRadius: 8,
+    paddingVertical: 4,
+  },
+  overlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

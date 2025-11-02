@@ -163,138 +163,6 @@ router.get("/supervisor/vehicles", authenticate, async (req, res) => {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// src/routes/mobile.route.js
-// router.get("/supervisor/drivers", authenticate, async (req, res) => {
-//   try {
-//     const supervisorId = req.user?.id;
-
-//     if (!supervisorId) {
-//       return res.status(401).json({ error: "Unauthorized" });
-//     }
-
-//     console.log("Fetching drivers for supervisor:", supervisorId);
-
-//     const drivers = await db.execute(
-//       sql`
-//         SELECT u.id, u.fullname AS name, COUNT(t.id) AS trips
-//         FROM users u
-//         INNER JOIN supervisions s ON s.driver_id = u.id
-//         LEFT JOIN trips t ON t.driver_id = u.id
-//         WHERE s.supervisor_id = ${supervisorId} AND u.role = 'driver'
-//         GROUP BY u.id, u.fullname
-//         ORDER BY u.fullname ASC
-//       `
-//     );
-
-//     res.json(drivers.rows);
-//   } catch (err) {
-//     console.error("Failed to fetch drivers:", err);
-//     res.status(500).json({ error: "Failed to fetch drivers" });
-//   }
-// });
-
-
-// UNCOMMENT THIS ONE
-// router.get("/supervisor/drivers", authenticate, async (req, res) => {
-//   try {
-//     console.log("Fetching all drivers with last activity info and status");
-
-//     const drivers = await db.execute(sql`
-//       SELECT 
-//         u.id,
-//         u.fullname AS name,
-//         COUNT(t.id) AS trips,
-
-//         -- Last Check-in Time
-//         ci.checked_in_at AS last_checkin_time,
-//         ci.start_location AS last_checkin_location,
-
-//         -- Last Check-out Time
-//         co.checked_out_at AS last_checkout_time,
-//         co.end_location AS last_checkout_location,
-
-//         -- Status: on trip if active trip, else assigned if assigned vehicle, else unassigned
-//         CASE 
-//           WHEN at.active_trip_id IS NOT NULL THEN 'on trip'
-//           WHEN a.vehicle_id IS NOT NULL THEN 'assigned'
-//           ELSE 'unassigned'
-//         END AS status
-
-//       FROM users u
-
-//       LEFT JOIN trips t ON t.driver_id = u.id
-
-//       LEFT JOIN LATERAL (
-//         SELECT c.checked_in_at, c.start_location
-//         FROM checkins c
-//         WHERE c.driver_id = u.id
-//         ORDER BY c.checked_in_at DESC
-//         LIMIT 1
-//       ) ci ON true
-
-//       LEFT JOIN LATERAL (
-//         SELECT c.checked_out_at, c.end_location
-//         FROM checkouts c
-//         WHERE c.driver_id = u.id
-//         ORDER BY c.checked_out_at DESC
-//         LIMIT 1
-//       ) co ON true
-
-//       LEFT JOIN LATERAL (
-//         SELECT trip.id AS active_trip_id
-//         FROM trips trip
-//         WHERE trip.driver_id = u.id
-//           AND trip.check_out_time IS NULL
-//         LIMIT 1
-//       ) at ON true
-
-//       LEFT JOIN LATERAL (
-//         SELECT vehicle_id
-//         FROM assignments a2
-//         WHERE a2.driver_id = u.id
-//         LIMIT 1
-//       ) a ON true
-
-//       WHERE u.role = 'driver'
-
-//       GROUP BY 
-//         u.id, u.fullname, 
-//         ci.checked_in_at, ci.start_location, 
-//         co.checked_out_at, co.end_location,
-//         at.active_trip_id,
-//         a.vehicle_id
-
-//       ORDER BY u.fullname ASC
-//     `);
-
-//     // res.json(drivers.rows); // ----> REMOVE THIS 1.1
-//     res.json(drivers); // 1.2 KEEP THIS
-
-//       // new line
-//     // console.log("Raw DB response:", drivers);
-//   } catch (err) {
-//     console.error("Failed to fetch drivers:", err);
-//     res.status(500).json({ error: "Failed to fetch drivers" });
-//   }
-// });
-
 router.get("/supervisor/drivers", authenticate, async (req, res) => {
   try {
     const supervisorId = req.user.id; // Get the logged-in supervisor's ID
@@ -412,7 +280,7 @@ router.get("/supervisor/assignments", authorize("supervisor"), async (req, res) 
 // POST /supervisor/assignments
 router.post("/supervisor/assignments", async (req, res) => {
   try {
-    const { driverId, vehicleId } = req.body;
+    const { driverId, vehicleId, permanent = false } = req.body;
 
     if (!driverId || !vehicleId) {
       return res.status(400).json({ error: "Driver ID and Vehicle ID are required" });
@@ -424,23 +292,17 @@ router.post("/supervisor/assignments", async (req, res) => {
       .from(assignments)
       .where(eq(assignments.vehicleId, vehicleId));
 
-
-      console.log("Existing assignment:", existing);
-
     if (existing.length > 0) {
       return res.status(409).json({ error: "Vehicle is already assigned" });
     }
 
-    console.log("Attempting to assign driver:", driverId, "to vehicle:", vehicleId);
-
-
-    // Create the assignment
+    // Create assignment
     const [newAssignment] = await db
       .insert(assignments)
       .values({
         driverId,
         vehicleId,
-        // You can add supervisorId if your schema supports it: supervisorId: req.user.id
+        permanent,
       })
       .returning();
 
@@ -452,6 +314,73 @@ router.post("/supervisor/assignments", async (req, res) => {
 });
 
 
+// add new one
+router.put('/supervisor/assignments/:assignmentId', async (req, res) => {
+  try {
+    const { assignmentId } = req.params;
+    const { driverId, permanent } = req.body;
+
+    // Add validation for assignmentId
+    if (!assignmentId) {
+      return res.status(400).json({ error: 'Assignment ID is required' });
+    }
+
+    await db
+      .update(assignments)
+      .set({
+        driverId,
+        permanent,
+      })
+      .where(eq(assignments.id, assignmentId));
+
+    res.json({ message: 'Assignment updated successfully' });
+  } catch (err) {
+    console.error('Failed to update assignment:', err);
+    res.status(500).json({ error: 'Failed to update assignment' });
+  }
+});
+
+router.delete(
+  "/supervisor/assignments/:assignmentId",
+  authenticate,
+  authorize("supervisor"),
+  async (req, res) => {
+    try {
+      const { assignmentId } = req.params;
+
+      if (!assignmentId) {
+        return res.status(400).json({ error: "assignmentId is required in URL" });
+      }
+
+      // Check if assignment exists
+      const assignment = await db
+        .select({
+          id: assignments.id,
+          driverId: assignments.driverId,
+          vehicleId: assignments.vehicleId,
+        })
+        .from(assignments)
+        .where(eq(assignments.id, assignmentId))
+        .limit(1);
+
+      if (!assignment || assignment.length === 0) {
+        return res.status(404).json({ error: "Assignment not found" });
+      }
+
+      // Delete the assignment
+      await db
+        .delete(assignments)
+        .where(eq(assignments.id, assignmentId));
+
+      res.json({ message: "Assignment removed successfully" });
+    } catch (err) {
+      console.error("Failed to remove assignment:", err);
+      res.status(500).json({ error: "Failed to remove assignment" });
+    }
+  }
+);
+
+
 router.post("/supervisor/checkin", authenticate, authorize("supervisor"), async (req, res) => {
   try {
     const [record] = await db.insert(checkins).values({ ...req.body, supervisor_id: req.user.id }).returning();
@@ -461,14 +390,6 @@ router.post("/supervisor/checkin", authenticate, authorize("supervisor"), async 
   }
 });
 
-// router.post("/supervisor/checkout", authenticate, authorize("supervisor"), async (req, res) => {
-//   try {
-//     const [record] = await db.insert(checkouts).values({ ...req.body, supervisor_id: req.user.id }).returning();
-//     res.status(201).json(record);
-//   } catch (err) {
-//     res.status(500).json({ error: "Failed to check out vehicle" });
-//   }
-// });
 
 router.post("/supervisor/checkout", authorize("supervisor"), async (req, res) => {
   try {
@@ -533,37 +454,41 @@ router.get("/supervisor/vehicles/:id/details", authenticate, authorize("supervis
     console.log("Fetching vehicle details for:", vehicleId);
 
     const result = await db.execute(sql`
-  SELECT 
-    v.id,
-    v.make,
-    v.model,
-    v.plate_number,
-    v.status,
-    u.fullname AS current_driver,
-    a.driver_id,                           
-    ci.checked_in_at,
-    ci.start_odometer,
-    t.id AS trip_id
-  FROM vehicles v
-  LEFT JOIN assignments a ON a.vehicle_id = v.id
-  LEFT JOIN users u ON u.id = a.driver_id
-  LEFT JOIN LATERAL (
-      SELECT c.checked_in_at, c.start_odometer
-      FROM checkins c
-      WHERE c.vehicle_id = v.id
-      ORDER BY c.checked_in_at DESC
-      LIMIT 1
-  ) ci ON true
-  LEFT JOIN LATERAL (
-      SELECT t.id
-      FROM trips t
-      WHERE t.vehicle_id = v.id
-        AND t.driver_id = a.driver_id 
-        AND t.check_out_time IS NULL
-      ORDER BY t.check_in_time DESC
-      LIMIT 1
-  ) t ON true
-  WHERE v.id = ${vehicleId}
+      SELECT 
+      v.id,
+      v.make,
+      v.model,
+      v.plate_number,
+      v.status,
+      u.fullname AS current_driver,
+      a.driver_id,
+      a.id AS current_assignment_id,
+      a.permanent AS current_assignment_permanent,
+      ci.checked_in_at,
+      ci.start_odometer,
+      t.id AS trip_id,
+      t.check_out_time AS checked_out_at
+    FROM vehicles v
+    LEFT JOIN assignments a ON a.vehicle_id = v.id
+    LEFT JOIN users u ON u.id = a.driver_id
+    LEFT JOIN LATERAL (
+        SELECT c.checked_in_at, c.start_odometer
+        FROM checkins c
+        WHERE c.vehicle_id = v.id
+        ORDER BY c.checked_in_at DESC
+        LIMIT 1
+    ) ci ON true
+    LEFT JOIN LATERAL (
+        SELECT t.id, t.check_out_time
+        FROM trips t
+        WHERE t.vehicle_id = v.id
+          AND t.driver_id = a.driver_id 
+          AND t.check_out_time IS NULL
+        ORDER BY t.check_in_time DESC
+        LIMIT 1
+    ) t ON true
+    WHERE v.id = ${vehicleId};
+
 `);
 
 
@@ -618,60 +543,6 @@ router.get("/driver/assignment", authenticate, async (req, res) => {
 });
 
 
-
-// router.post("/driver/checkin", async (req, res) => {
-//   try {
-
-//     const {
-//       vehicleId,
-//       driverId,
-//       startOdometer,
-//       startLocation,
-//       performedById,
-//       performedByRole,
-//       tripPurpose
-//     } = req.body;
-
-//     console.log({
-//   vehicleId,
-//   driverId,
-//   performedById,
-//   performedByRole,
-//   startOdometer,
-//   startLocation,
-// });
-
-
-//     const [record] = await db.insert(checkins).values({
-//       vehicleId,
-//       // driverId: req.user.id,
-//       driverId,
-//       performedById,
-//       performedByRole,
-//       startOdometer,
-//       startLocation,
-//       tripPurpose,
-//     }).returning();
-
-
-//     const [trip] = await db.insert(trips).values({
-//       // driverId: req.user.id,
-//       driverId: req.body.driverId,
-//       vehicleId: req.body.vehicleId,
-//       odometerStart: req.body.startOdometer,
-//       locationStart: req.body.startLocation,
-//       checkInTime: new Date()
-//     }).returning();
-
-//     res.status(201).json({
-//       checkin: record,
-//       tripId: trip.id
-//     });
-//   } catch (err) {
-//     console.error("Driver check-in error:", err);
-//     res.status(500).json({ error: "Driver check-in failed" });
-//   }
-// });
 
 router.post("/driver/checkin", async (req, res) => {
   try {
@@ -778,108 +649,6 @@ router.get("/driver/active-trip", authenticate, async (req, res) => {
   }
 });
 
-
-
-// router.post("/driver/checkout", authorize("driver"), async (req, res) => {
-//   try {
-//     const [record] = await db.insert(checkouts).values({ ...req.body, driver_id: req.user.id }).returning();
-//     res.status(201).json(record);
-//   } catch (err) {
-//     res.status(500).json({ error: "Driver check-out failed" });
-//   }
-// });
-
-// router.post("/driver/checkout", async (req, res) => {
-//   try {
-//     const {
-//       tripId,
-//       vehicleId,
-//       driverId,
-//       performedById,
-//       performedByRole,
-//       endOdometer,
-//       endLocation
-//     } = req.body;
-
-//     // Basic validation
-//     if (!tripId || !vehicleId || !driverId || !performedById || !performedByRole || !endOdometer || !endLocation) {
-//       return res.status(400).json({ error: "Missing required fields" });
-//     }
-
-//     // Insert into checkouts
-//     const [record] = await db.insert(checkouts).values({
-//       vehicleId,
-//       driverId,
-//       performedById,
-//       performedByRole,
-//       endOdometer,
-//       endLocation,
-//       checkedOutAt: new Date()
-//     }).returning();
-
-//     // Update trip
-//     await db.update(trips)
-//       .set({
-//         odometerEnd: endOdometer,
-//         locationEnd: endLocation,
-//         checkOutTime: new Date()
-//       })
-//       .where(eq(trips.id, tripId));
-
-//     res.status(201).json({ message: "Checked out successfully", checkout: record });
-
-//   } catch (err) {
-//     console.error("Driver check-out error:", err);
-//     res.status(500).json({ error: "Driver check-out failed" });
-//   }
-// });
-// router.post("/driver/checkout", authorize("driver"), async (req, res) => {
-//   try {
-//     const {
-//       tripId,
-//       vehicleId,
-//       endOdometer,
-//       endLocation
-//     } = req.body;
-
-//     // Basic validation
-//     if (!tripId || !vehicleId || !endOdometer || !endLocation) {
-//       return res.status(400).json({ error: "Missing required fields" });
-//     }
-
-//     // performedById and performedByRole from req.user (token)
-//     const performedById = req.user.id;
-//     const performedByRole = "driver";
-//     const driverId = req.user.id; // driver checking out themselves
-
-//     // Insert checkout record
-//     const [record] = await db.insert(checkouts).values({
-//       vehicleId,
-//       driverId,
-//       performedById,
-//       performedByRole,
-//       endOdometer,
-//       endLocation,
-//       checkedOutAt: new Date()
-//     }).returning();
-
-//     // Update trip details
-//     await db.update(trips)
-//       .set({
-//         odometerEnd: endOdometer,
-//         locationEnd: endLocation,
-//         checkOutTime: new Date()
-//       })
-//       .where(eq(trips.id, tripId));
-
-//     res.status(201).json({ message: "Checked out successfully", checkout: record });
-
-//   } catch (err) {
-//     console.error("Driver check-out error:", err);
-//     res.status(500).json({ error: "Driver check-out failed" });
-//   }
-// });
-
 router.post("/driver/checkout", async (req, res) => {
   try {
     const {
@@ -916,19 +685,23 @@ router.post("/driver/checkout", async (req, res) => {
     });
 
     // Insert into checkouts table
-    const [checkout] = await db.insert(checkouts).values({
-      tripId,
-      vehicleId,
-      driverId,
-      performedById,
-      performedByRole,
-      endOdometer,
-      endLocation,
-      checkedOutAt: new Date(),
-    }).returning();
+    const [checkout] = await db
+      .insert(checkouts)
+      .values({
+        tripId,
+        vehicleId,
+        driverId,
+        performedById,
+        performedByRole,
+        endOdometer,
+        endLocation,
+        checkedOutAt: new Date(),
+      })
+      .returning();
 
     // Update trip end details
-    await db.update(trips)
+    await db
+      .update(trips)
       .set({
         odometerEnd: endOdometer,
         locationEnd: endLocation,
@@ -936,20 +709,43 @@ router.post("/driver/checkout", async (req, res) => {
       })
       .where(eq(trips.id, tripId));
 
-      
     // Update vehicle status to "available"
-    await db.update(vehicles)
+    await db
+      .update(vehicles)
       .set({
         status: "available",
       })
       .where(eq(vehicles.id, vehicleId));
 
 
+    // Check if assignment is permanent
+    const [assignment] = await db
+      .select({ permanent: assignments.permanent })
+      .from(assignments)
+      .where(
+        and(
+          eq(assignments.driverId, driverId),
+          eq(assignments.vehicleId, vehicleId)
+        )
+      );
+
+    if (!assignment?.permanent) {
+      // Only delete if NOT permanent
+      await db
+        .delete(assignments)
+        .where(
+          and(
+            eq(assignments.driverId, driverId),
+            eq(assignments.vehicleId, vehicleId)
+          )
+        );
+    }
+
+
     res.status(201).json({
       message: "Check-out successful",
-      checkout
+      checkout,
     });
-
   } catch (err) {
     console.error("Driver check-out error:", err);
     res.status(500).json({ error: "Driver check-out failed" });
@@ -959,36 +755,62 @@ router.post("/driver/checkout", async (req, res) => {
 
 
 // GET /api/mobile/dashboard
-router.get('/dashboard', async (req, res) => {
+router.get("/dashboard", authenticate, async (req, res) => {
   try {
-    // Total vehicles
-    const totalVehicles = await db.select().from(vehicles);
-    
-    // Active drivers (currently checked-in)
+    const supervisorId = req.user.id;
+
+    // Get the supervisor’s assigned entity
+    const [supervisor] = await db
+      .select({ entityId: supervisors.assignedEntityId })
+      .from(supervisors)
+      .where(eq(supervisors.id, supervisorId));
+
+    if (!supervisor?.entityId) {
+      return res
+        .status(404)
+        .json({ error: "Supervisor has no assigned entity" });
+    }
+
+    const entityId = supervisor.entityId;
+
+    // Fetch total vehicles for that entity
+    const vehiclesList = await db
+      .select({ id: vehicles.id })
+      .from(vehicles)
+      .where(eq(vehicles.entityId, entityId));
+
+    // Fetch active drivers checked in to that entity’s vehicles
     const activeDriverRows = await db
       .selectDistinctOn([checkins.driverId])
       .from(checkins)
+      .innerJoin(vehicles, eq(checkins.vehicleId, vehicles.id))
+      .where(eq(vehicles.entityId, entityId))
       .orderBy(checkins.driverId, desc(checkins.checkedInAt));
 
     const activeDrivers = activeDriverRows.length;
 
-    // Fuel logs
-    const fuel_logs = await db.select().from(fuelLogs);
+    // Fetch fuel logs belonging to the entity
+    const fuelLogsList = await db
+      .select({ id: fuelLogs.id })
+      .from(fuelLogs)
+      .innerJoin(vehicles, eq(fuelLogs.vehicleId, vehicles.id))
+      .where(eq(vehicles.entityId, entityId));
 
+    // Send filtered stats
     res.json({
-      totalVehicles: totalVehicles.length,
+      totalVehicles: vehiclesList.length,
       activeDrivers,
-      fuelLogs: fuel_logs.length,
+      fuelLogs: fuelLogsList.length,
     });
   } catch (err) {
     console.error("Dashboard fetch error:", err);
-    res.status(500).json({ error: 'Failed to load dashboard data' });
+    res.status(500).json({ error: "Failed to load dashboard data" });
   }
 });
 
 router.post("/driver/fuel", async (req, res) => {
   try {
-    // const [log] = await db.insert(fuelLogs).values({ ...req.body, logged_by: req.user.id }).returning();
+    console.log("✅ Fuel log received:", req.body);
     const [log] = await db.insert(fuelLogs).values({ ...req.body }).returning();
     res.status(201).json(log);
   } catch (err) {

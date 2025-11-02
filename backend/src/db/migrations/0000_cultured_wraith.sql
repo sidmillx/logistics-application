@@ -2,7 +2,31 @@ CREATE TABLE "assignments" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"driver_id" uuid,
 	"vehicle_id" uuid,
-	"assigned_at" timestamp DEFAULT now()
+	"assigned_at" timestamp DEFAULT now(),
+	"permanent" boolean DEFAULT false
+);
+--> statement-breakpoint
+CREATE TABLE "checkins" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"vehicle_id" uuid NOT NULL,
+	"driver_id" uuid NOT NULL,
+	"performed_by_id" uuid NOT NULL,
+	"performed_by_role" text NOT NULL,
+	"start_odometer" integer NOT NULL,
+	"start_location" text NOT NULL,
+	"trip_purpose" text NOT NULL,
+	"checked_in_at" timestamp DEFAULT now()
+);
+--> statement-breakpoint
+CREATE TABLE "checkouts" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"vehicle_id" uuid NOT NULL,
+	"driver_id" uuid NOT NULL,
+	"performed_by_id" uuid NOT NULL,
+	"performed_by_role" text NOT NULL,
+	"end_odometer" integer,
+	"end_location" text NOT NULL,
+	"checked_out_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
 CREATE TABLE "drivers" (
@@ -25,6 +49,10 @@ CREATE TABLE "fuel_logs" (
 	"vehicle_id" uuid,
 	"litres" integer NOT NULL,
 	"cost" integer NOT NULL,
+	"odometer" integer NOT NULL,
+	"location" text NOT NULL,
+	"payment_reference" text NOT NULL,
+	"receipt_url" text,
 	"logged_by" uuid,
 	"trip_id" uuid,
 	"timestamp" timestamp DEFAULT now()
@@ -74,6 +102,7 @@ CREATE TABLE "vehicles" (
 	"model" text NOT NULL,
 	"make" text NOT NULL,
 	"status" text DEFAULT 'available' NOT NULL,
+	"plant_number" text,
 	"entity_id" uuid,
 	"created_at" timestamp DEFAULT now(),
 	CONSTRAINT "vehicles_plate_number_unique" UNIQUE("plate_number")
@@ -81,6 +110,12 @@ CREATE TABLE "vehicles" (
 --> statement-breakpoint
 ALTER TABLE "assignments" ADD CONSTRAINT "assignments_driver_id_users_id_fk" FOREIGN KEY ("driver_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "assignments" ADD CONSTRAINT "assignments_vehicle_id_vehicles_id_fk" FOREIGN KEY ("vehicle_id") REFERENCES "public"."vehicles"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "checkins" ADD CONSTRAINT "checkins_vehicle_id_vehicles_id_fk" FOREIGN KEY ("vehicle_id") REFERENCES "public"."vehicles"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "checkins" ADD CONSTRAINT "checkins_driver_id_users_id_fk" FOREIGN KEY ("driver_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "checkins" ADD CONSTRAINT "checkins_performed_by_id_users_id_fk" FOREIGN KEY ("performed_by_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "checkouts" ADD CONSTRAINT "checkouts_vehicle_id_vehicles_id_fk" FOREIGN KEY ("vehicle_id") REFERENCES "public"."vehicles"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "checkouts" ADD CONSTRAINT "checkouts_driver_id_users_id_fk" FOREIGN KEY ("driver_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "checkouts" ADD CONSTRAINT "checkouts_performed_by_id_users_id_fk" FOREIGN KEY ("performed_by_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "drivers" ADD CONSTRAINT "drivers_id_users_id_fk" FOREIGN KEY ("id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "drivers" ADD CONSTRAINT "drivers_entity_id_entities_id_fk" FOREIGN KEY ("entity_id") REFERENCES "public"."entities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "fuel_logs" ADD CONSTRAINT "fuel_logs_vehicle_id_vehicles_id_fk" FOREIGN KEY ("vehicle_id") REFERENCES "public"."vehicles"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint

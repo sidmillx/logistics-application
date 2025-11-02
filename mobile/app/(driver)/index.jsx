@@ -422,7 +422,7 @@ const styles = StyleSheet.create({
     // paddingVertical: 5,
     width: '100%',
     
-    paddingVertical: 5, // py-3 equivalent (3 * 4 = 12)
+    paddingVertical: 4, // py-3 equivalent (3 * 4 = 12)
     borderRadius: 12, // rounded-xl
     alignItems: 'center',
     justifyContent: 'center',

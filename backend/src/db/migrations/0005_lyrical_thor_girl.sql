@@ -1,1 +1,0 @@
-ALTER TABLE "vehicles" RENAME COLUMN "plan_number" TO "plant_number";

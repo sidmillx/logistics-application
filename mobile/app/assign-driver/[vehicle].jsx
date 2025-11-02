@@ -1,19 +1,21 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Platform, Alert, ScrollView, KeyboardAvoidingView } from 'react-native';
-import { Button, Menu, useTheme, Select } from 'react-native-paper';
+import { View, Text, StyleSheet, Platform, Alert, ScrollView, KeyboardAvoidingView, TextInput } from 'react-native';
+import { Button, Menu, useTheme, Switch } from 'react-native-paper';
 import { router, useLocalSearchParams } from 'expo-router';
 import API_BASE_URL from '../../config/api';
 import { getItem } from '../../utils/storage';
-import { Car } from 'lucide-react-native'
+import { Car, Search } from 'lucide-react-native';
 
 export default function AssignDriver() {
   const { vehicle, plateNumber } = useLocalSearchParams(); // expects vehicle to be an ID string
   const [visible, setVisible] = useState(false);
   const [drivers, setDrivers] = useState([]);
+  const [filteredDrivers, setFilteredDrivers] = useState([]);
   const [selectedDriver, setSelectedDriver] = useState(null);
-  const [status, setStatus] = useState('Available'); // or whatever status you want
+  const [status, setStatus] = useState('Available');
 
-  // const [vehicleData, setVehicleData] = useState(null);
+  const [permanent, setPermanent] = useState(false); // New toggle for permanent assignment
+  const [searchQuery, setSearchQuery] = useState('');
 
   const theme = useTheme();
 
@@ -39,6 +41,7 @@ export default function AssignDriver() {
 
         const data = await res.json();
         setDrivers(data);
+        setFilteredDrivers(data);
       } catch (error) {
         console.error("Failed to load drivers", error);
       }
@@ -47,27 +50,17 @@ export default function AssignDriver() {
     fetchDrivers();
   }, []);
 
-//   useEffect(() => {
-//   const fetchVehicle = async () => {
-//     try {
-//       const token = await getToken();
-//       const res = await fetch(`${API_BASE_URL}/api/mobile/supervisor/vehicles/${vehicle}`, {
-//         headers: {
-//           "Authorization": `Bearer ${token}`,
-//           "Content-Type": "application/json",
-//         },
-//       });
-
-//       const data = await res.json();
-//       setVehicleData(data);
-//     } catch (err) {
-//       console.error("Failed to fetch vehicle info:", err);
-//     }
-//   };
-
-//   if (vehicle) fetchVehicle();
-// }, [vehicle]);
-
+  // Filter drivers based on search query
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredDrivers(drivers);
+    } else {
+      const filtered = drivers.filter(driver =>
+        driver.fullname.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredDrivers(filtered);
+    }
+  }, [searchQuery, drivers]);
 
   const handleAssign = async () => {
     try {
@@ -81,7 +74,8 @@ export default function AssignDriver() {
         },
         body: JSON.stringify({
           driverId: selectedDriver ? selectedDriver.id : null,
-          vehicleId: vehicle, // must be ID, not the vehicle object
+          vehicleId: vehicle,
+          permanent: permanent, // send permanent status
         }),
       });
 
@@ -92,9 +86,23 @@ export default function AssignDriver() {
         return;
       }
 
-      Alert.alert("Success", "Driver assigned to vehicle successfully!", [
-        { text: "OK", onPress: () => router.replace('/') },
-      ]);
+      // Success handling with web + mobile support
+if (Platform.OS === 'web') {
+  alert('Driver assigned to vehicle successfully!');
+  router.replace('/(supervisor)/vehicles');
+} else {
+  Alert.alert(
+    'Success',
+    'Driver assigned to vehicle successfully!',
+    [
+      {
+        text: 'OK',
+        onPress: () => router.replace('/(supervisor)/vehicles'),
+      },
+    ]
+  );
+}
+
     } catch (err) {
       console.error("Assignment error:", err);
       Alert.alert("Error", "Could not assign driver.");
@@ -102,11 +110,11 @@ export default function AssignDriver() {
   };
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView 
+      <ScrollView
         style={[styles.container, { backgroundColor: theme.colors.background }]}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -119,7 +127,7 @@ export default function AssignDriver() {
             </View>
             <Text style={styles.assignmentCardTitle}>Vehicle Details</Text>
           </View>
-          
+
           <View style={styles.assignmentCardContent}>
             <View style={styles.assignmentVehicleIdContainer}>
               <Text style={styles.assignmentVehicleIdLabel}>Vehicle</Text>
@@ -127,7 +135,7 @@ export default function AssignDriver() {
                 {plateNumber}
               </Text>
             </View>
-            
+
             <View style={styles.assignmentStatusContainer}>
               <View style={styles.assignmentStatusIndicator} />
               <Text style={styles.assignmentStatusText}>{status}</Text>
@@ -135,10 +143,14 @@ export default function AssignDriver() {
           </View>
         </View>
 
+        {/* Driver Selector with Search */}
         <View style={styles.menuContainer}>
           <Menu
             visible={visible}
-            onDismiss={() => setVisible(false)}
+            onDismiss={() => {
+              setVisible(false);
+              setSearchQuery(''); // Clear search when menu closes
+            }}
             anchor={
               <Button
                 mode="outlined"
@@ -150,25 +162,56 @@ export default function AssignDriver() {
               </Button>
             }
             style={styles.menuStyle}
+            contentStyle={styles.menuContent}
           >
-            <ScrollView 
+            {/* Search Bar */}
+            <View style={styles.searchContainer}>
+              <Search size={20} color="#6b7280" style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search drivers..."
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoFocus={true}
+              />
+            </View>
+
+            <ScrollView
               style={styles.menuScrollView}
               nestedScrollEnabled={true}
+              keyboardShouldPersistTaps="handled"
             >
-              {drivers.map(driver => (
-                <Menu.Item
-                  key={driver.id}
-                  title={driver.fullname}
-                  onPress={() => {
-                    setSelectedDriver(driver);
-                    setVisible(false);
-                  }}
-                  style={styles.menuItem}
-                  titleStyle={styles.menuItemText}
-                />
-              ))}
+              {filteredDrivers.length === 0 ? (
+                <Text style={styles.noResultsText}>
+                  {searchQuery ? 'No drivers found' : 'No drivers available'}
+                </Text>
+              ) : (
+                filteredDrivers.map(driver => (
+                  <Menu.Item
+                    key={driver.id}
+                    title={driver.fullname}
+                    onPress={() => {
+                      setSelectedDriver(driver);
+                      setVisible(false);
+                      setSearchQuery('');
+                    }}
+                    style={styles.menuItem}
+                    titleStyle={styles.menuItemText}
+                  />
+                ))
+              )}
             </ScrollView>
           </Menu>
+        </View>
+
+        {/* Permanent Toggle */}
+        <View style={styles.permanentToggleContainer}>
+          <Text style={styles.permanentLabel}>Permanent Assignment</Text>
+          <Switch
+            value={permanent}
+            onValueChange={setPermanent}
+            color={theme.colors.primary}
+          />
         </View>
 
         <Button
@@ -185,50 +228,27 @@ export default function AssignDriver() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 20,
-  },
-  title: {
-    marginBottom: 5,
-    fontWeight: 'bold',
-  },
-  subtitle: {
-    marginBottom: 20,
-    color: '#666',
-  },
-  menuContainer: {
-    minHeight: 60, // Ensure enough space for the menu
-    marginBottom: 20,
-  },
-  menuButton: {
-    width: '100%',
-  },
-  menuButtonContent: {
-    height: 50,
-    justifyContent: 'center',
-  },
-  menuStyle: {
-    marginTop: 50, // Adjust based on your needs
-    maxHeight: 400, // Limit menu height
-  },
-  menuScrollView: {
-    maxHeight: 380, // Slightly less than menu height for padding
-  },
+  container: { flex: 1 },
+  scrollContent: { flexGrow: 1, padding: 20 },
+  menuContainer: { minHeight: 60, marginBottom: 20 },
+  menuButton: { width: '100%' },
+  menuButtonContent: { height: 50, justifyContent: 'center' },
+  menuStyle: { marginTop: 50, maxHeight: 400, width: '90%' },
+  menuContent: { padding: 0 },
+  menuScrollView: { maxHeight: 300},
+  // Center dropdown items properly
   menuItem: {
-    height: 44, // Standard touch target height
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center', // centers content horizontally
+    width: '100%'
   },
   menuItemText: {
     fontSize: 16,
+    textAlign: 'center', // centers text within its container
+    width: '100%',
   },
-  assignButton: {
-    marginTop: 10,
-    marginBottom: 30, // Extra padding at bottom for better scrolling
-  },
-
+  assignButton: { marginTop: 10, marginBottom: 30 },
   assignmentCard: {
     borderWidth: 2,
     borderColor: 'rgba(0, 32, 77, 0.2)',
@@ -247,7 +267,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 32, 77, 0.1)',
+    borderBottomColor: 'rgba(0, 32, 77, 0.1)'
   },
   assignmentIconContainer: {
     width: 32,
@@ -256,45 +276,55 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
+    marginRight: 8
   },
-  assignmentCardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#00204D',
-  },
-  assignmentCardContent: {
-    gap: 16,
-  },
+  assignmentCardTitle: { fontSize: 18, fontWeight: '600', color: '#00204D' },
+  assignmentCardContent: { gap: 16 },
   assignmentVehicleIdContainer: {
     backgroundColor: '#f9fafb',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 12
   },
-  assignmentVehicleIdLabel: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 4,
-  },
+  assignmentVehicleIdLabel: { fontSize: 14, color: '#6b7280', marginBottom: 4 },
   assignmentVehicleIdValue: {
     fontFamily: 'monospace',
     fontSize: 24,
     fontWeight: '600',
-    color: '#00204D',
+    color: '#00204D'
   },
-  assignmentStatusContainer: {
+  assignmentStatusContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  assignmentStatusIndicator: { width: 8, height: 8, backgroundColor: '#10b981', borderRadius: 4 },
+  assignmentStatusText: { color: '#059669', fontWeight: '500' },
+  permanentToggleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20
+  },
+  permanentLabel: { fontSize: 16, fontWeight: '500' },
+
+  // Search styles
+  searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    backgroundColor: '#f9fafb',
   },
-  assignmentStatusIndicator: {
-    width: 8,
-    height: 8,
-    backgroundColor: '#10b981',
-    borderRadius: 4,
+  searchIcon: { marginRight: 12 },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    paddingVertical: 8,
+    borderWidth: 0, // removed outline
+    outlineWidth: 0, // remove outline on web
   },
-  assignmentStatusText: {
-    color: '#059669',
-    fontWeight: '500',
+  noResultsText: {
+    textAlign: 'center',
+    padding: 16,
+    color: '#6b7280',
+    fontStyle: 'italic',
   },
 });

@@ -1,4 +1,4 @@
-import { pgTable, serial, text, uuid, timestamp, varchar, ForeignKey, integer } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, uuid, timestamp, varchar, ForeignKey, integer, boolean, real } from 'drizzle-orm/pg-core';
 
 // USERS TABLE
 export const usersTable = pgTable('users', {
@@ -45,6 +45,7 @@ export const assignments = pgTable("assignments", {
   driverId: uuid("driver_id").references(() => usersTable.id),
   vehicleId: uuid("vehicle_id").references(() => vehicles.id),
   assignedAt: timestamp("assigned_at").defaultNow(),
+  permanent: boolean("permanent").default(false),
 });
 
 
@@ -65,8 +66,8 @@ export const trips = pgTable("trips", {
 export const fuelLogs = pgTable("fuel_logs", {
   id: uuid("id").primaryKey().defaultRandom(),
   vehicleId: uuid("vehicle_id").references(() => vehicles.id),
-  litres: integer("litres").notNull(),
-  cost: integer("cost").notNull(),
+  litres: real("litres").notNull(),  
+  cost: real("cost").notNull(),
   odometer: integer("odometer").notNull(),
   location: text("location").notNull(),
   paymentReference: text("payment_reference").notNull(), // e.g., transaction ID
