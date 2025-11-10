@@ -93,8 +93,8 @@ const LoginScreen = () => {
       // Navigate based on role
       if (data.user.role === 'driver') {
         router.replace('/(driver)');
-      } else if (data.user.role === 'supervisor') {
-        router.replace('/(supervisor)');
+      } else if (data.user.role === 'supervisor' || data.user.role === 'super_supervisor') {
+          router.replace('/(supervisor)');
       } else {
         Alert.alert('Access Denied', 'Your role is not permitted.');
         await clearStorage();

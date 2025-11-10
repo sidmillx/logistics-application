@@ -7,9 +7,10 @@ export const usersTable = pgTable('users', {
     username: text('username').notNull().unique(),
     password: text('password').notNull(),
     role: text('role').notNull().default('driver'),
+    entityId: uuid('entity_id').references(() => entitiesTable.id),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
-})
+});
 
 export const entitiesTable = pgTable('entities', {
     id: uuid("id").primaryKey().defaultRandom(),

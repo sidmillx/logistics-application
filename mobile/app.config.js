@@ -68,7 +68,7 @@ export default {
     name: "Inyatsi Fleet Management",
     slug: "mobile",
     owner: "sidmillx",
-    version: "1.1.6",
+    version: "1.1.7",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "inyatsi-fleet",
@@ -78,7 +78,7 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.sidmillx.mobile",
-      buildNumber: "30",
+      buildNumber: "31",
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
         NSAppTransportSecurity: { NSAllowsArbitraryLoads: true },

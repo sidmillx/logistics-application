@@ -1,0 +1,2 @@
+ALTER TABLE "users" ADD COLUMN "entity_id" uuid;
+ALTER TABLE "users" ADD CONSTRAINT "users_entity_id_entities_id_fk" FOREIGN KEY ("entity_id") REFERENCES "public"."entities"("id") ON DELETE no action ON UPDATE no action;

@@ -7,6 +7,31 @@ import API_BASE_URL from "../config/config";
 
 
 const UserManagement = () => {
+  const [supervisionLogs, setSupervisionLogs] = useState([]);
+
+const fetchSupervisionLogs = async () => {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${API_BASE_URL}/api/admin/supervision-logs`, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`, 
+      }});
+    if (!res.ok) throw new Error("Failed to fetch supervision logs");
+    const data = await res.json();
+    setSupervisionLogs(data);
+  } catch (err) {
+    console.error("Error fetching supervision logs:", err);
+  }
+};
+
+// call in useEffect
+useEffect(() => {
+  fetchSupervisionLogs();
+}, []);
+
+
+
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [editingRoles, setEditingRoles] = useState({});
@@ -44,7 +69,11 @@ const UserManagement = () => {
   // Fetch users (existing endpoint)
   const fetchUsers = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/users`);
+      const res = await fetch(`${API_BASE_URL}/api/admin/users`,{
+        headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`, 
+      }},
+      );
       if (!res.ok) throw new Error("Failed to fetch users");
       const data = await res.json();
       setUsers(data);
@@ -57,7 +86,11 @@ const UserManagement = () => {
   // Fetch entities for supervisor entity selection
   const fetchEntities = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/supervisors/entities`);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_BASE_URL}/api/admin/supervisors/entities`,{
+        headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`, 
+      }},);
       if (!res.ok) throw new Error("Failed to fetch entities");
       const data = await res.json();
       setEntities(data);
@@ -70,7 +103,10 @@ const UserManagement = () => {
   const fetchSupervisorAssignments = async () => {
     try {
       const res = await fetch(
-        `${API_BASE_URL}/api/admin/supervisor-assignments`
+        `${API_BASE_URL}/api/admin/supervisor-assignments`,{
+        headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`, 
+      }},
       );
       if (!res.ok) throw new Error("Failed to fetch assignments");
       const data = await res.json();
@@ -482,7 +518,7 @@ const UserManagement = () => {
 
       {/* User Table */}
       <div className="table-container">
-        <Table columns={columns} data={filteredUsers} rowsPerPage={5} />
+        <Table columns={columns} data={filteredUsers} pagination={true} rowsPerPage={10} />
       </div>
 
       {/* Supervisor Assignments Section */}
@@ -506,7 +542,7 @@ const UserManagement = () => {
           + Assign Supervisor
         </button>
         <div className="table-container">
-          <Table columns={assignmentColumns} data={supervisorAssignments} rowsPerPage={5} />
+          <Table columns={assignmentColumns} data={supervisorAssignments} pagination={true} rowsPerPage={10} />
         </div>
       </div>
 
@@ -746,8 +782,54 @@ const UserManagement = () => {
           </form>
         </div>
       )}
+
+
+
+
+      {/* Supervisor Assignment Logs Section */}
+<div style={{ marginTop: "32px" }}>
+  <h2>Supervisor Assignment Logs</h2>
+  <p style={{ marginBottom: "16px" }}>
+    View all supervisor-driver assignments with vehicle info and timestamps.
+  </p>
+  <div className="table-container">
+    <Table
+      columns={[
+        {
+          key: "plateNumber",
+          title: "Vehicle Plate",
+          render: (cellValue, row) => row.plateNumber || "Unknown",
+        },
+        {
+          key: "supervisorId",
+          title: "Supervisor ID",
+          render: (cellValue, row) => row.supervisorName,
+        },
+        {
+          key: "driverId",
+          title: "Driver ID",
+          render: (cellValue, row) => row.driverName,
+        },
+        {
+          key: "assignedAt",
+          title: "Assigned At",
+          render: (cellValue, row) =>
+            new Date(row.assignedAt || row.createdAt).toLocaleString(),
+        },
+      ]}
+      data={supervisionLogs}
+      pagination={true}
+      rowsPerPage={10}
+    />
+  </div>
+</div>
+
+  
     </div>
-  );
+
+
+
+    );
 };
 
 export default UserManagement;

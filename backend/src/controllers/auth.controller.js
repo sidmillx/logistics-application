@@ -24,9 +24,12 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: "Invalid username or password" });
     }
 
-    const token = jwt.sign({ id: user.id, role: user.role }, ENV.JWT_SECRET, {
+
+    const token = jwt.sign({ id: user.id, role: user.role, entityId: user.entityId }, ENV.JWT_SECRET, {
       expiresIn: "3d",
     });
+
+    // console.log(`Debug user details: ${user.id}, ${user.role}, ${user.entityId}`)
 
     const { password: _, ...userWithoutPassword } = user;
 

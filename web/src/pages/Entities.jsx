@@ -30,7 +30,10 @@ const Entities = () => {
     try {
       const [summaryRes, entityStatsRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/admin/summary`),
-        fetch(`${API_BASE_URL}/api/admin/entities/overview`)
+        fetch(`${API_BASE_URL}/api/admin/entities/overview`,{
+        headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`, 
+      }},)
       ]);
 
       if (!summaryRes.ok || !entityStatsRes.ok) throw new Error('Failed to fetch');
@@ -58,9 +61,18 @@ const Entities = () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/admin/entities/${id}`, {
         method: "DELETE",
+        headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`, 
+      }
+
       });
 
+       if (res.status === 401 || res.status === 403) {
+      toast.error("You are not authorized to perform this action.");
+      return;
+    }
       if (!res.ok) throw new Error("Failed to delete");
+
 
       toast.success("Entity deleted successfully");
       setTableData(prev => prev.filter(e => e.id !== id));
@@ -113,7 +125,19 @@ const Entities = () => {
 
   const openEditModal = async (entity) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/entities/${entity.id}`);
+
+      const token = localStorage.getItem("token");
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/entities/${entity.id}`, {
+         headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`, 
+      }},
+      );
+      if (res.status === 401 || res.status === 403) {
+      toast.error("You are not authorized to perform this action.");
+      return;
+    }
       if (!res.ok) throw new Error("Failed to fetch entity details");
       const data = await res.json();
       setFormData({
@@ -148,6 +172,10 @@ const Entities = () => {
         body: JSON.stringify(formData),
       });
 
+      if (res.status === 401 || res.status === 403) {
+      toast.error("You are not authorized to perform this action.");
+      return;
+    }
       if (!res.ok) throw new Error("Failed to save entity");
 
       toast.success(editingEntity ? "Entity updated successfully!" : "Entity added successfully!");

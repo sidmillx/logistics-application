@@ -29,9 +29,18 @@ const DriverManagement = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
+
+      const token = localStorage.getItem("token");
+      
       const [driversRes, summaryRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/admin/drivers`),
-        fetch(`${API_BASE_URL}/api/admin/drivers/summary`),
+        fetch(`${API_BASE_URL}/api/admin/drivers`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        }}),
+        fetch(`${API_BASE_URL}/api/admin/drivers/summary`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        }}),
       ]);
 
       if (!driversRes.ok || !summaryRes.ok) {

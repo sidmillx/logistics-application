@@ -23,8 +23,181 @@ const router = express.Router();
 
 
 
+import { inArray } from "drizzle-orm";
+
+// router.get("/supervision-logs", async (req, res) => {
+//   try {
+//     // First get the basic supervision data
+//     const supervisionData = await db
+//       .select({
+//         id: supervisions.id,
+//         supervisorId: supervisions.supervisorId,
+//         driverId: supervisions.driverId,
+//         assignedAt: supervisions.createdAt,
+//       })
+//       .from(supervisions);
+
+//     if (supervisionData.length === 0) {
+//       return res.json([]);
+//     }
+
+//     // Get all unique user IDs involved
+//     const userIds = [
+//       ...new Set([
+//         ...supervisionData.map(s => s.supervisorId),
+//         ...supervisionData.map(s => s.driverId)
+//       ])
+//     ].filter(Boolean); // Remove any null/undefined values
+
+//     // Get user details using inArray
+//     const users = await db
+//       .select({
+//         id: usersTable.id,
+//         fullname: usersTable.fullname,
+//       })
+//       .from(usersTable)
+//       .where(inArray(usersTable.id, userIds));
+
+//     // Get driver IDs for assignments
+//     const driverIds = supervisionData.map(s => s.driverId).filter(Boolean);
+
+//     // Get assignments and vehicles
+//     const assignmentData = driverIds.length > 0 ? await db
+//       .select({
+//         driverId: assignments.driverId,
+//         plateNumber: vehicles.plateNumber,
+//       })
+//       .from(assignments)
+//       .leftJoin(vehicles, eq(vehicles.id, assignments.vehicleId))
+//       .where(inArray(assignments.driverId, driverIds)) : [];
+
+//     // Combine the data
+//     const logs = supervisionData.map(supervision => {
+//       const supervisor = users.find(u => u.id === supervision.supervisorId);
+//       const driver = users.find(u => u.id === supervision.driverId);
+//       const assignment = assignmentData.find(a => a.driverId === supervision.driverId);
+
+//       return {
+//         supervisorName: supervisor?.fullname || null,
+//         driverName: driver?.fullname || null,
+//         assignedAt: supervision.assignedAt,
+//         plateNumber: assignment?.plateNumber || null,
+//       };
+//     });
+
+//     res.json(logs);
+//   } catch (err) {
+//     console.error("Error fetching supervision logs:", err);
+//     res.status(500).json({ message: "Failed to fetch supervision logs" });
+//   }
+// });
+
+
+
+
 
 //================================================ DRIVER MANAGEMENT =======================================
+
+
+
+
+router.get("/supervision-logs", authenticate, async (req, res) => {
+  try {
+    // Extract user info (assuming JWT middleware adds it to req.user)
+    const { role, entityId } = req.user;
+    console.log(`Role: ${role}, Entity ID: ${entityId}`)
+
+    // Base supervision query
+    let supervisionQuery = db
+      .select({
+        id: supervisions.id,
+        supervisorId: supervisions.supervisorId,
+        driverId: supervisions.driverId,
+        assignedAt: supervisions.createdAt,
+      })
+      .from(supervisions);
+
+    // If admin, filter to supervisors from their entity
+    if (role === "admin") {
+      // Get supervisor IDs that belong to this admin's entity
+      const supervisorsInEntity = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(and(
+          eq(usersTable.role, "supervisor"),
+          eq(usersTable.entityId, entityId)
+        ));
+
+      const supervisorIds = supervisorsInEntity.map(s => s.id);
+
+      if (supervisorIds.length === 0) {
+        return res.json([]); // No supervisors = no logs
+      }
+
+      supervisionQuery = supervisionQuery.where(inArray(supervisions.supervisorId, supervisorIds));
+    }
+
+    const supervisionData = await supervisionQuery;
+
+    if (supervisionData.length === 0) {
+      return res.json([]);
+    }
+
+    // Collect unique user IDs
+    const userIds = [
+      ...new Set([
+        ...supervisionData.map(s => s.supervisorId),
+        ...supervisionData.map(s => s.driverId),
+      ]),
+    ].filter(Boolean);
+
+    // Fetch user details
+    const users = await db
+      .select({
+        id: usersTable.id,
+        fullname: usersTable.fullname,
+      })
+      .from(usersTable)
+      .where(inArray(usersTable.id, userIds));
+
+    // Collect driver IDs for assignments
+    const driverIds = supervisionData.map(s => s.driverId).filter(Boolean);
+
+    // Get assignments and vehicles
+    const assignmentData =
+      driverIds.length > 0
+        ? await db
+            .select({
+              driverId: assignments.driverId,
+              plateNumber: vehicles.plateNumber,
+            })
+            .from(assignments)
+            .leftJoin(vehicles, eq(vehicles.id, assignments.vehicleId))
+            .where(inArray(assignments.driverId, driverIds))
+        : [];
+
+    // Combine everything
+    const logs = supervisionData.map((supervision) => {
+      const supervisor = users.find((u) => u.id === supervision.supervisorId);
+      const driver = users.find((u) => u.id === supervision.driverId);
+      const assignment = assignmentData.find(
+        (a) => a.driverId === supervision.driverId
+      );
+
+      return {
+        supervisorName: supervisor?.fullname || null,
+        driverName: driver?.fullname || null,
+        assignedAt: supervision.assignedAt,
+        plateNumber: assignment?.plateNumber || null,
+      };
+    });
+
+    res.json(logs);
+  } catch (err) {
+    console.error("Error fetching supervision logs:", err);
+    res.status(500).json({ message: "Failed to fetch supervision logs" });
+  }
+});
 
 /** GET /api/admin/drivers/
  * 
@@ -36,50 +209,99 @@ const router = express.Router();
  * 500 - Server error
  * 
  */
-router.get("/drivers", async (req, res) => {
-  try {
-    // First get all active driver IDs (those currently on trips)
-    const activeDriverResults = await db
-      .select({ 
-        driverId: trips.driverId 
-      })
-      .from(trips)
-      .where(
-        and(
-          isNotNull(trips.checkInTime),
-          isNull(trips.checkOutTime)
-        )
-      )
-      .groupBy(trips.driverId);
+// router.get("/drivers", async (req, res) => {
+//   try {
+//     // First get all active driver IDs (those currently on trips)
+//     const activeDriverResults = await db
+//       .select({ 
+//         driverId: trips.driverId 
+//       })
+//       .from(trips)
+//       .where(
+//         and(
+//           isNotNull(trips.checkInTime),
+//           isNull(trips.checkOutTime)
+//         )
+//       )
+//       .groupBy(trips.driverId);
 
-    const activeDriverIds = activeDriverResults.map(d => d.driverId);
+//     const activeDriverIds = activeDriverResults.map(d => d.driverId);
 
-    // Then get all drivers with their details
-    const allDrivers = await db
-      .select({
-        id: drivers.id,
-        name: usersTable.fullname,
-        contact: drivers.contact,
-        entityName: entities.name,
-      })
-      .from(drivers)
-      .leftJoin(usersTable, eq(drivers.id, usersTable.id))
-      .leftJoin(entities, eq(drivers.entityId, entities.id));
+//     // Then get all drivers with their details
+//     const allDrivers = await db
+//       .select({
+//         id: drivers.id,
+//         name: usersTable.fullname,
+//         contact: drivers.contact,
+//         entityName: entities.name,
+//       })
+//       .from(drivers)
+//       .leftJoin(usersTable, eq(drivers.id, usersTable.id))
+//       .leftJoin(entities, eq(drivers.entityId, entities.id));
 
-    // Augment each driver with active status
-    const results = allDrivers.map(driver => ({
-      ...driver,
-      isActive: activeDriverIds.includes(driver.id)
-    }));
+//     // Augment each driver with active status
+//     const results = allDrivers.map(driver => ({
+//       ...driver,
+//       isActive: activeDriverIds.includes(driver.id)
+//     }));
 
-    res.json(results);
-  } catch (err) {
-    console.error("Failed to fetch drivers:", err);
-    res.status(500).json({ error: "Failed to fetch drivers" });
+//     res.json(results);
+//   } catch (err) {
+//     console.error("Failed to fetch drivers:", err);
+//     res.status(500).json({ error: "Failed to fetch drivers" });
+//   }
+// });
+
+router.get(
+  "/drivers",
+  authenticate,
+  authorize("super_admin", "admin"),
+  async (req, res) => {
+    try {
+      const { role, entityId } = req.user;
+      console.log(`Role: ${role} /n Entity ID: ${entityId}`)
+
+      // 1️⃣ Get active driver IDs (on active trips)
+      const activeDriverResults = await db
+        .select({ driverId: trips.driverId })
+        .from(trips)
+        .where(and(isNotNull(trips.checkInTime), isNull(trips.checkOutTime)))
+        .groupBy(trips.driverId);
+
+      const activeDriverIds = activeDriverResults.map((d) => d.driverId);
+
+      // 2️⃣ Base query for all drivers
+      let query = db
+        .select({
+          id: drivers.id,
+          name: usersTable.fullname,
+          contact: drivers.contact,
+          entityName: entities.name,
+        })
+        .from(drivers)
+        .leftJoin(usersTable, eq(drivers.id, usersTable.id))
+        .leftJoin(entities, eq(drivers.entityId, entities.id));
+
+      // 3️⃣ Restrict for admin role
+      if (role === "admin" && entityId) {
+        query = query.where(eq(drivers.entityId, entityId));
+      }
+
+      const allDrivers = await query;
+
+      // 4️⃣ Add active status
+      const results = allDrivers.map((driver) => ({
+        ...driver,
+        isActive: activeDriverIds.includes(driver.id),
+      }));
+
+      res.json(results);
+    } catch (err) {
+      console.error("Failed to fetch drivers:", err);
+      res.status(500).json({ error: "Failed to fetch drivers" });
+    }
   }
-});
-
-
+);
 /** GET /api/admin/drivers/summary
  * 
  * Description:
@@ -90,56 +312,127 @@ router.get("/drivers", async (req, res) => {
  * 500 - Server error
  * 
  */
-router.get("/drivers/summary", async (req, res) => {
+// router.get("/drivers/summary", async (req, res) => {
+//   try {
+//     // Get active drivers (currently on trips)
+//     const activeDrivers = await db
+//       .select({ 
+//         driverId: trips.driverId 
+//       })
+//       .from(trips)
+//       .where(
+//         and(
+//           isNotNull(trips.checkInTime),
+//           isNull(trips.checkOutTime)
+//         )
+//       )
+//       .groupBy(trips.driverId);
+
+//     // Get total driver count
+//     const totalDrivers = await db
+//       .select({ count: sql`count(*)` })
+//       .from(drivers);
+
+//     // Get trip statistics - FIXED VERSION
+//     const tripStats = await db
+//       .select({
+//         totalTrips: sql`count(*)`,
+//         avgTrips: sql`ROUND(avg(count)::numeric, 1)`
+//       })
+//       .from(
+//         db
+//           .select({
+//             driverId: trips.driverId,
+//             count: sql`count(*)`.mapWith(Number)
+//           })
+//           .from(trips)
+//           .groupBy(trips.driverId)
+//           .as("driver_trips")
+//       );
+
+//     res.json({
+//       totalDrivers: Number(totalDrivers[0].count),
+//       activeDrivers: activeDrivers.length,
+//       avgTripsPerDriver: tripStats[0].avgTrips || 0,
+//       totalTrips: tripStats[0].totalTrips || 0
+//     });
+//   } catch (err) {
+//     console.error("Failed to load driver summary:", err);
+//     res.status(500).json({ error: "Failed to fetch driver summary" });
+//   }
+// });
+router.get("/drivers/summary", authenticate, async (req, res) => {
   try {
-    // Get active drivers (currently on trips)
-    const activeDrivers = await db
-      .select({ 
-        driverId: trips.driverId 
-      })
+    const { role, entityId } = req.user;
+
+    // Build filters based on role
+    let driverFilter = undefined;
+    let tripFilter = undefined;
+
+    if (role === "super_admin") {
+      // No restriction
+    } else if (role === "admin") {
+      // Limit to drivers under the admin’s entity
+      driverFilter = eq(drivers.entityId, entityId);
+      tripFilter = sql`${trips.driverId} IN (SELECT id FROM drivers WHERE entity_id = ${entityId})`;
+    } else {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    // Active drivers (currently on trips)
+    const activeDriversQuery = db
+      .select({ driverId: trips.driverId })
       .from(trips)
       .where(
         and(
           isNotNull(trips.checkInTime),
-          isNull(trips.checkOutTime)
+          isNull(trips.checkOutTime),
+          ...(tripFilter ? [tripFilter] : [])
         )
       )
       .groupBy(trips.driverId);
 
-    // Get total driver count
-    const totalDrivers = await db
-      .select({ count: sql`count(*)` })
-      .from(drivers);
+    const activeDrivers = await activeDriversQuery;
 
-    // Get trip statistics - FIXED VERSION
-    const tripStats = await db
+    // Total driver count
+    const totalDriversQuery = db
+      .select({ count: sql`count(*)` })
+      .from(drivers)
+      .where(driverFilter ?? sql`true`);
+
+    const totalDrivers = await totalDriversQuery;
+
+    // Trip statistics (average and total trips per driver)
+    const tripStatsQuery = db
       .select({
         totalTrips: sql`count(*)`,
-        avgTrips: sql`ROUND(avg(count)::numeric, 1)`
+        avgTrips: sql`ROUND(avg(count)::numeric, 1)`,
       })
       .from(
         db
           .select({
             driverId: trips.driverId,
-            count: sql`count(*)`.mapWith(Number)
+            count: sql`count(*)`.mapWith(Number),
           })
           .from(trips)
+          .where(tripFilter ?? sql`true`)
           .groupBy(trips.driverId)
           .as("driver_trips")
       );
 
+    const tripStats = await tripStatsQuery;
+
     res.json({
       totalDrivers: Number(totalDrivers[0].count),
       activeDrivers: activeDrivers.length,
-      avgTripsPerDriver: tripStats[0].avgTrips || 0,
-      totalTrips: tripStats[0].totalTrips || 0
+      avgTripsPerDriver: tripStats[0]?.avgTrips || 0,
+      totalTrips: tripStats[0]?.totalTrips || 0,
     });
   } catch (err) {
     console.error("Failed to load driver summary:", err);
     res.status(500).json({ error: "Failed to fetch driver summary" });
   }
 });
-
 
 /** GET /api/admin/drivers/:id
  * 
@@ -423,15 +716,36 @@ router.delete("/drivers/:id", async (req, res) => {
  * 500 - Failed to fetch users
  */
 
-router.get("/users", async (req, res) => {
+// router.get("/users", async (req, res) => {
+//   try {
+//     const allUsers = await db.select().from(usersTable);
+//     res.json(allUsers);
+//   } catch (err) {
+//     res.status(500).json({ error: "Failed to fetch users" });
+//   }
+// });
+
+
+router.get("/users", authenticate, async (req, res) => {
   try {
-    const allUsers = await db.select().from(usersTable);
+    const { role, entityId } = req.user;
+
+    let query = db.select().from(usersTable);
+
+    // If admin, restrict to users in same entity
+    if (role === "admin") {
+      query = query.where(eq(usersTable.entityId, entityId));
+    }
+
+    // If super admin, leave unrestricted
+    const allUsers = await query;
+
     res.json(allUsers);
   } catch (err) {
+    console.error("Error fetching users:", err);
     res.status(500).json({ error: "Failed to fetch users" });
   }
 });
-
 
 /** GET /api/admin/users/:id
  * 
@@ -462,18 +776,31 @@ router.get("/users/:id", async (req, res) => {
  * Responses:
  * 500 - Internal Server Error!
  */
-router.get("/users", async (req, res) => {
+router.get("/users", authenticate, async (req, res) => {
   try {
-    const users = await db.select({
-      id: usersTable.id,
-      fullname: usersTable.fullname,
-      username: usersTable.username,
-      role: usersTable.role,
-    }).from(usersTable);
+    const { role, entityId } = req.user;
 
+    let query = db
+      .select({
+        id: usersTable.id,
+        fullname: usersTable.fullname,
+        username: usersTable.username,
+        role: usersTable.role,
+        entityId: usersTable.entityId,
+        entityName: entitiesTable.name,
+      })
+      .from(usersTable)
+      .leftJoin(entitiesTable, eq(usersTable.entityId, entitiesTable.id));
+
+    // Restrict admins to their own entity
+    if (role === "admin") {
+      query = query.where(eq(usersTable.entityId, entityId));
+    }
+
+    const users = await query;
     res.json(users);
   } catch (err) {
-    console.error("Fetch users error:", err);
+    console.error("Error fetching users:", err);
     res.status(500).json({ message: "Failed to fetch users" });
   }
 });
@@ -626,13 +953,79 @@ router.delete("/users/:id", async (req, res) => {
 
 // ==== ENTITIES ====
 // GET: Overview of entities and vehicles
-router.get("/entities/overview", async (req, res) => {
-  try {
-    const entitiesData = await db.select().from(entities);
-    const vehiclesData = await db.select().from(vehicles);
+// router.get("/entities/overview", async (req, res) => {
+//   try {
+//     const entitiesData = await db.select().from(entities);
+//     const vehiclesData = await db.select().from(vehicles);
 
-    console.log(entitiesData);
-    console.log(vehiclesData);
+//     console.log(entitiesData);
+//     console.log(vehiclesData);
+
+//     const entitySummaries = entitiesData.map((entity) => {
+//       const relatedVehicles = vehiclesData.filter(
+//         (v) => v.entityId === entity.id
+//       );
+
+//       const total = relatedVehicles.length;
+//       const inUse = relatedVehicles.filter((v) => v.status === "in-use").length;
+//       const available = relatedVehicles.filter((v) => v.status === "available").length;
+//       const maintenance = relatedVehicles.filter((v) => v.status === "maintenance").length;
+
+//       return {
+//         id: entity.id,
+//         name: entity.name,
+//         totalVehicles: total,
+//         vehiclesInUse: inUse,
+//         vehiclesAvailable: available,
+//         underMaintenance: maintenance,
+//       };
+//     });
+
+//     // Get totals across all entities
+//     const totalVehicles = vehiclesData.length;
+//     const totalEntities = entitiesData.length;
+//     const totalAvailable = vehiclesData.filter(v => v.status === "Available").length;
+
+//     res.json({
+//       entitySummaries,
+//       totalVehicles,
+//       totalEntities,
+//       totalAvailable,
+//     });
+
+//     // res.json([{ name: "Test Entity", totalVehicles: 10, vehiclesInUse: 5, vehiclesAvailable: 3, underMaintenance: 2 }]);
+//   } catch (err) {
+//     console.error("Error in /entities/overview:", err);
+//     res.status(500).json({ error: "Failed to load overview" });
+//   }
+// });
+
+
+router.get("/entities/overview", authenticate, async (req, res) => {
+  try {
+    const { role, entityId } = req.user;
+
+    let entitiesData = [];
+    let vehiclesData = [];
+
+    if (role === "super_admin") {
+      // Super admin can see everything
+      entitiesData = await db.select().from(entities);
+      vehiclesData = await db.select().from(vehicles);
+    } else if (role === "admin") {
+      // Admin can only see vehicles from their entity
+      entitiesData = await db
+        .select()
+        .from(entities)
+        .where(eq(entities.id, entityId));
+
+      vehiclesData = await db
+        .select()
+        .from(vehicles)
+        .where(eq(vehicles.entityId, entityId));
+    } else {
+      return res.status(403).json({ message: "Access denied" });
+    }
 
     const entitySummaries = entitiesData.map((entity) => {
       const relatedVehicles = vehiclesData.filter(
@@ -641,8 +1034,12 @@ router.get("/entities/overview", async (req, res) => {
 
       const total = relatedVehicles.length;
       const inUse = relatedVehicles.filter((v) => v.status === "in-use").length;
-      const available = relatedVehicles.filter((v) => v.status === "available").length;
-      const maintenance = relatedVehicles.filter((v) => v.status === "maintenance").length;
+      const available = relatedVehicles.filter(
+        (v) => v.status === "available"
+      ).length;
+      const maintenance = relatedVehicles.filter(
+        (v) => v.status === "maintenance"
+      ).length;
 
       return {
         id: entity.id,
@@ -654,10 +1051,11 @@ router.get("/entities/overview", async (req, res) => {
       };
     });
 
-    // Get totals across all entities
     const totalVehicles = vehiclesData.length;
     const totalEntities = entitiesData.length;
-    const totalAvailable = vehiclesData.filter(v => v.status === "Available").length;
+    const totalAvailable = vehiclesData.filter(
+      (v) => v.status === "available"
+    ).length;
 
     res.json({
       entitySummaries,
@@ -665,8 +1063,6 @@ router.get("/entities/overview", async (req, res) => {
       totalEntities,
       totalAvailable,
     });
-
-    // res.json([{ name: "Test Entity", totalVehicles: 10, vehiclesInUse: 5, vehiclesAvailable: 3, underMaintenance: 2 }]);
   } catch (err) {
     console.error("Error in /entities/overview:", err);
     res.status(500).json({ error: "Failed to load overview" });
@@ -716,7 +1112,7 @@ router.get("/entities/:id/overview", async (req, res) => {
  * 404 - Entity not found
  * 500 - Failed to fetch entity
  */
-router.get("/entities/:id", async (req, res) => {
+router.get("/entities/:id", authenticate, async (req, res) => {
   const { id } = req.params;
   try {
     const result = await db.select().from(entities).where(eq(entities.id, id));
@@ -811,7 +1207,7 @@ router.post("/vehicles", async (req, res) => {
  * Create a new entity
  */
 
-router.post("/entities", async (req, res) => {
+router.post("/entities", authenticate, authorize("super_admin"), async (req, res) => {
   try {
     const [newEntity] = await db.insert(entities).values(req.body).returning();
     res.status(201).json(newEntity);
@@ -820,7 +1216,7 @@ router.post("/entities", async (req, res) => {
   }
 });
 
-router.put("/entities/:id", async (req, res) => {
+router.put("/entities/:id", authenticate, authorize("super_admin"), async (req, res) => {
   const { id } = req.params;
   const { name, description } = req.body;
 
@@ -903,40 +1299,86 @@ router.get("/fuel-logs", async (req, res) => {
 
 
 // GET /api/admin/vehicles
-router.get("/vehicles", async (req, res) => {
-  try {
-    const results = await db
-      .select({
-        id: vehicles.id,
-        plateNumber: vehicles.plateNumber,
-        make: vehicles.make,
-        model: vehicles.model,
-        status: vehicles.status,
-        entityId: vehicles.entityId,
-        entityName: entities.name,
-        createdAt: vehicles.createdAt,
-        plantNumber: vehicles.plantNumber
-      })
-      .from(vehicles)
-      .leftJoin(entities, eq(vehicles.entityId, entities.id));
+router.get(
+  "/vehicles",
+  authenticate,  //  ensures user is logged in
+  authorize("super_admin", "admin"), //  allows only admins
+  async (req, res) => {
+    try {
+      const { role, entityId } = req.user;
 
-    console.log(`Fetched vehicles data: ${results}`)
-    
-    res.json(results);
-  } catch (err) {
-    console.error("Failed to fetch vehicles:", err);
-    res.status(500).json({ error: "Failed to fetch vehicles" });
+      let query = db
+        .select({
+          id: vehicles.id,
+          plateNumber: vehicles.plateNumber,
+          make: vehicles.make,
+          model: vehicles.model,
+          status: vehicles.status,
+          entityId: vehicles.entityId,
+          entityName: entities.name,
+          createdAt: vehicles.createdAt,
+          plantNumber: vehicles.plantNumber,
+        })
+        .from(vehicles)
+        .leftJoin(entities, eq(vehicles.entityId, entities.id));
+
+      //  If admin, filter by their entityId
+      if (role === "admin") {
+        query = query.where(eq(vehicles.entityId, entityId));
+      }
+
+      const results = await query;
+      res.json(results);
+    } catch (err) {
+      console.error("Failed to fetch vehicles:", err);
+      res.status(500).json({ error: "Failed to fetch vehicles" });
+    }
   }
-});
+);
 
-router.get("/vehicles/summary", async (req, res) => {
+// router.get("/vehicles/summary", async (req, res) => {
+//   try {
+//     const all = await db.select().from(vehicles);
+//     const totalVehicles = all.length;
+//     const available = all.filter(v => v.status === "available").length || 0;
+//     const inUse = all.filter(v => v.status === "in-use").length || 0;
+
+//     // TODO: Replace with actual logic for fuel logged today
+//     const fuelLoggedToday = 0;
+
+//     res.json({ totalVehicles, available, inUse, fuelLoggedToday });
+//   } catch (err) {
+//     console.error("Failed to fetch vehicle summary:", err);
+//     res.status(500).json({ error: "Failed to fetch summary" });
+//   }
+// });
+router.get("/vehicles/summary", authenticate, async (req, res) => {
   try {
-    const all = await db.select().from(vehicles);
+    const { role, entityId } = req.user;
+
+    // Apply role-based filtering
+    let whereCondition = undefined;
+
+    if (role === "super_admin") {
+      // No restriction
+    } else if (role === "admin") {
+      whereCondition = eq(vehicles.entityId, entityId);
+    } else {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    // Fetch vehicles based on role
+    const all = await db
+      .select()
+      .from(vehicles)
+      .where(whereCondition ?? undefined);
+
+    // Compute summary
     const totalVehicles = all.length;
     const available = all.filter(v => v.status === "available").length || 0;
     const inUse = all.filter(v => v.status === "in-use").length || 0;
 
-    // TODO: Replace with actual logic for fuel logged today
+    // Optional: Replace with actual query if you track daily fuel logs
     const fuelLoggedToday = 0;
 
     res.json({ totalVehicles, available, inUse, fuelLoggedToday });
@@ -945,7 +1387,6 @@ router.get("/vehicles/summary", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch summary" });
   }
 });
-
 router.delete("/vehicles/:id", async (req, res) => {
   const { id } = req.params;
 
@@ -1002,7 +1443,7 @@ router.get("/vehicles/:id", async (req, res) => {
 
 
 
-router.delete("/entities/:id", async (req, res) => {
+router.delete("/entities/:id", authenticate, authorize("super_admin"), async (req, res) => {
   try {
     await db.delete(entities).where(eq(entities.id, req.params.id));
     res.json({ message: "Entity deleted" });
@@ -1039,9 +1480,12 @@ router.get("/vehicles/:id/fuel-logs", async (req, res) => {
 });
 
 
-router.get("/trips/logs", async (req, res) => {
+router.get("/trips/logs", authenticate, async (req, res) => {
   try {
-    const tripData = await db
+    const { role, entityId } = req.user;
+
+    // Build base query
+    let query = db
       .select({
         id: trips.id,
         vehicleId: trips.vehicleId,
@@ -1063,12 +1507,20 @@ router.get("/trips/logs", async (req, res) => {
       .innerJoin(usersTable, eq(usersTable.id, trips.driverId))
       .innerJoin(vehicles, eq(vehicles.id, trips.vehicleId))
       .leftJoin(fuelLogs, eq(fuelLogs.tripId, trips.id))
-      .where(
+      .where(and(isNotNull(trips.odometerEnd), isNotNull(trips.checkOutTime)));
+
+    // If admin (not super-admin), filter by their entity
+    if (role === "admin") {
+      query = query.where(
         and(
+          eq(vehicles.entityId, entityId),
           isNotNull(trips.odometerEnd),
           isNotNull(trips.checkOutTime)
         )
       );
+    }
+
+    const tripData = await query;
 
     res.json(tripData);
   } catch (err) {
@@ -1076,7 +1528,6 @@ router.get("/trips/logs", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch trip logs" });
   }
 });
-
 
 router.get("/drivers/utilization/summary", async (req, res) => {
   try {
@@ -1445,9 +1896,48 @@ router.put("/settings", authenticate, async (req, res) => {
 
 
 // GET /api/admin/supervisor-assignments
-router.get("/supervisor-assignments", async (req, res) => {
+// router.get("/supervisor-assignments", async (req, res) => {
+//   try {
+//     const assignments = await db
+//       .select({
+//         id: supervisions.id,
+//         supervisorId: supervisions.supervisorId,
+//         supervisorName: sql`(SELECT fullname FROM users WHERE id = ${supervisions.supervisorId})`,
+//         driverId: supervisions.driverId,
+//         driverName: sql`(SELECT fullname FROM users WHERE id = ${supervisions.driverId})`,
+//         createdAt: supervisions.createdAt,
+//       })
+//       .from(supervisions);
+
+//     res.json(assignments);
+//   } catch (err) {
+//     console.error("Error fetching supervisor assignments:", err);
+//     res.status(500).json({ message: "Failed to fetch supervisor assignments" });
+//   }
+// });
+
+router.get("/supervisor-assignments", authenticate, async (req, res) => {
   try {
-    const assignments = await db
+    const { role, entityId } = req.user;
+
+    let supervisorIds = [];
+
+    // If the user is an admin, restrict supervisors to their entity
+    if (role === "admin") {
+      const supervisorsInEntity = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(and(eq(usersTable.role, "supervisor"), eq(usersTable.entityId, entityId)));
+
+      supervisorIds = supervisorsInEntity.map((s) => s.id);
+
+      if (supervisorIds.length === 0) {
+        return res.json([]); // No supervisors for this entity
+      }
+    }
+
+    // Build base query
+    let query = db
       .select({
         id: supervisions.id,
         supervisorId: supervisions.supervisorId,
@@ -1457,6 +1947,14 @@ router.get("/supervisor-assignments", async (req, res) => {
         createdAt: supervisions.createdAt,
       })
       .from(supervisions);
+
+    // Apply filter for admin
+    if (role === "admin") {
+      query = query.where(inArray(supervisions.supervisorId, supervisorIds));
+    }
+
+    // Execute the query
+    const assignments = await query;
 
     res.json(assignments);
   } catch (err) {
@@ -1561,11 +2059,32 @@ router.get("/supervisors", async (req, res) => {
 });
 
 // GET entities for dropdown
-router.get("/supervisors/entities", async (req, res) => {
+// router.get("/supervisors/entities", async (req, res) => {
+//   try {
+//     const data = await db.select().from(entities);
+//     res.json(data);
+//   } catch (error) {
+//     res.status(500).json({ message: "Failed to fetch entities" });
+//   }
+// });
+
+router.get("/supervisors/entities", authenticate, async (req, res) => {
   try {
-    const data = await db.select().from(entities);
+    const { role, entityId } = req.user;
+
+    let query = db.select().from(entities);
+
+    // Admins see only their entity
+    if (role === "admin") {
+      query = query.where(eq(entities.id, entityId));
+    }
+
+    // Super admins see all entities
+    const data = await query;
+
     res.json(data);
   } catch (error) {
+    console.error("Error fetching entities:", error);
     res.status(500).json({ message: "Failed to fetch entities" });
   }
 });

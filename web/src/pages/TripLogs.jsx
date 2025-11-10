@@ -14,7 +14,12 @@ const TripLogs = () => {
   useEffect(() => {
     const fetchTrips = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/admin/trips/logs`);
+        const res = await fetch(`${API_BASE_URL}/api/admin/trips/logs`,{
+           headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          }},
+        );
         const data = await res.json();
 
         const formatted = data.map(trip => {

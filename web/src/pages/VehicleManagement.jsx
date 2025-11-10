@@ -30,9 +30,16 @@ const VehicleManagement = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem("token");
       const [vehiclesRes, summaryRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/admin/vehicles`),
-        fetch(`${API_BASE_URL}/api/admin/vehicles/summary`),
+        fetch(`${API_BASE_URL}/api/admin/vehicles`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        }}),
+        fetch(`${API_BASE_URL}/api/admin/vehicles/summary`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        }}),
       ]);
       if (!vehiclesRes.ok || !summaryRes.ok) throw new Error('Failed to fetch');
 

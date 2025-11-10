@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, Platform, Alert, TouchableOpacity, ActivityIndicator as RNActivity } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, Platform, Alert, TouchableOpacity, TextInput, ActivityIndicator as RNActivity } from 'react-native';
 import { Card, Button, useTheme, ActivityIndicator } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
@@ -13,6 +13,8 @@ export default function VehicleFleet() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTab, setSelectedTab] = useState('all');
+  const [searchPlate, setSearchPlate] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
 
   const getToken = async () => {
     if (Platform.OS === 'web') {
@@ -44,8 +46,8 @@ export default function VehicleFleet() {
 
       const text = await response.text();
       if (!text) {
-        console.warn('Empty response from server, using fallback');
         setVehicles([]);
+        setSearchResults([]);
         return;
       }
 
@@ -56,11 +58,12 @@ export default function VehicleFleet() {
         console.error('Failed to parse vehicles JSON:', text, parseErr);
         Alert.alert('Error', 'Received invalid data from server.');
         setVehicles([]);
+        setSearchResults([]);
         return;
       }
 
-      console.log('🚗 Vehicles from API (on focus):', data);
       setVehicles(data);
+      setSearchResults(data);
     } catch (error) {
       console.error('Error fetching vehicles:', error);
       Alert.alert('Error', 'Something went wrong while fetching vehicles.');
@@ -70,11 +73,9 @@ export default function VehicleFleet() {
     }
   };
 
-  // ✅ Automatically refetch when page comes into focus
   useFocusEffect(
     useCallback(() => {
       fetchVehicles();
-      return () => {}; // Cleanup not needed
     }, [])
   );
 
@@ -100,7 +101,21 @@ export default function VehicleFleet() {
     return plate.toUpperCase();
   };
 
-  const filteredVehicles = vehicles.filter((v) => {
+  // ✅ Live search: filter vehicles on every searchPlate change
+  useEffect(() => {
+    const term = searchPlate.trim().toLowerCase();
+    if (!term) {
+      setSearchResults(vehicles);
+    } else {
+      const results = vehicles.filter((v) =>
+        v.plateNumber?.toLowerCase().includes(term)
+      );
+      setSearchResults(results);
+    }
+  }, [searchPlate, vehicles]);
+
+  // Filter vehicles by tab
+  const filteredVehicles = searchResults.filter((v) => {
     if (selectedTab === 'all') return true;
     if (selectedTab === 'in-use') return v.status === 'in-use';
     if (selectedTab === 'available') return v.status === 'available';
@@ -138,6 +153,22 @@ export default function VehicleFleet() {
         ))}
       </View>
 
+      {/* Search Input */}
+      <TextInput
+        placeholder="Search by plate number"
+        value={searchPlate}
+        onChangeText={setSearchPlate}
+        style={{
+          marginBottom: 12,
+          borderWidth: 1,
+          borderColor: '#ccc',
+          borderRadius: 8,
+          paddingHorizontal: 12,
+          height: 40,
+          backgroundColor: '#fff',
+        }}
+      />
+
       <FlatList
         data={filteredVehicles}
         keyExtractor={(item, index) => index.toString()}
@@ -145,7 +176,6 @@ export default function VehicleFleet() {
         renderItem={({ item }) => (
           <Card style={styles.card}>
             <View style={styles.cardInner}>
-              {/* Plate Number */}
               <View style={styles.plateContainer}>
                 <View style={styles.plateBox}>
                   <Text style={styles.plateText}>{formatPlateNumber(item.plateNumber)}</Text>
@@ -154,7 +184,6 @@ export default function VehicleFleet() {
                 <View style={styles.plateDotRight} />
               </View>
 
-              {/* Vehicle Info */}
               <View style={styles.vehicleInfoRow}>
                 <View style={styles.vehicleInfoLeft}>
                   <View style={styles.iconWrapper}>
@@ -179,7 +208,6 @@ export default function VehicleFleet() {
                 </View>
               </View>
 
-              {/* Driver Info */}
               <View style={styles.driverSection}>
                 <View style={styles.driverRow}>
                   <Users size={16} color="#6B7280" />
@@ -190,7 +218,6 @@ export default function VehicleFleet() {
                 </View>
               </View>
 
-              {/* Action Button */}
               <Button
                 mode={item.driverName ? 'contained' : 'outlined'}
                 onPress={() => {
@@ -226,7 +253,6 @@ export default function VehicleFleet() {
         )}
       />
 
-      {/* ✅ Smooth Refresh Overlay */}
       {refreshing && (
         <View style={styles.overlay}>
           <RNActivity size="large" color="#002246" />
@@ -237,7 +263,7 @@ export default function VehicleFleet() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+    container: {
     flex: 1,
     padding: 16,
   },

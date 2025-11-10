@@ -12,6 +12,7 @@ import {
   trips,
   supervisions,
   supervisors,
+  entitiesTable as entities,
   drivers
 } from "../db/schema.js";
 import {  isNotNull, isNull, desc, asc, inArray, or   } from "drizzle-orm";
@@ -122,8 +123,30 @@ import { sql, eq, gte } from "drizzle-orm";
 
 router.get("/supervisor/vehicles", authenticate, async (req, res) => {
   try {
-    const supervisorId = req.user.id;
+    const {id: supervisorId, role } = req.user;
 
+    //---- If the user is a super supervisor → return ALL vehicles
+    if (role === "super_supervisor") {
+      const allVehicles = await db
+        .select({
+          id: vehicles.id,
+          plateNumber: vehicles.plateNumber,
+          model: vehicles.model,
+          make: vehicles.make,
+          status: vehicles.status,
+          driverName: users.fullname,
+          entityName: entities.name,
+        })
+        .from(vehicles)
+        .leftJoin(assignments, eq(assignments.vehicleId, vehicles.id))
+        .leftJoin(users, eq(assignments.driverId, users.id))
+        .leftJoin(entities, eq(vehicles.entityId, entities.id)); // join to show entity info
+
+      return res.json(allVehicles);
+    }
+
+
+    //---- Otherwise → normal supervisor logic
     // 1 Get the supervisor's entity
     const [supervisor] = await db
       .select({ entityId: supervisors.assignedEntityId })
