@@ -128,3 +128,4 @@ app.listen(PORT, () => {
 // REACT NATIVE -> EXPO
 
 // DB -> POSTGRESS -> DRIZZLE ORM
+

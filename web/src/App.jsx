@@ -14,12 +14,6 @@ import DriverUtilization from './pages/DriverUtilization';
 import FuelUtilization from './pages/FuelUtilization';
 import Reports from './pages/Reports';
 import DriverDetails from './pages/DriverDetails';
-import AddDriver from "./pages/AddDriver";
-import AddVehicle from './pages/AddVehicle';
-import AddEntity from './pages/AddEntity';
-import EditDriver from './pages/EditDriver';
-import EditEntity from './pages/EditEntity';
-import EditVehicle from './pages/EditVehicle';
 import ViewFuelLogs from './pages/ViewFuelLogs';
 import UserManagement from './pages/UserManagement';
 import Login from './pages/Login';
@@ -42,7 +36,7 @@ const Layout = ({ children }) => {
     </>
   );
 };
-
+ 
 function App() {
   return (
     <Router>
@@ -56,33 +50,19 @@ function App() {
           <Route path="/driver-management" element={
             <PrivateRoute><DriverManagement /></PrivateRoute>
           } />
-          <Route path="/drivers/add" element={
-            <PrivateRoute><AddDriver /></PrivateRoute>
-          } />
-          <Route path="/drivers/edit/:id" element={
-            <PrivateRoute><EditDriver /></PrivateRoute>
-          } />
+        
           <Route path="/drivers/:id" element={
             <PrivateRoute><DriverDetails /></PrivateRoute>
           } />
           <Route path="/entities" element={
             <PrivateRoute><Entities /></PrivateRoute>
           } />
-          <Route path="/entities/add" element={
-            <PrivateRoute><AddEntity /></PrivateRoute>
-          } />
-          <Route path="/entity/edit/:id" element={
-            <PrivateRoute><EditEntity /></PrivateRoute>
-          } />
+        
+    
           <Route path="/vehicle-management" element={
             <PrivateRoute><VehicleManagement /></PrivateRoute>
           } />
-          <Route path="/vehicles/add" element={
-            <PrivateRoute><AddVehicle /></PrivateRoute>
-          } />
-          <Route path="/vehicle/edit/:id" element={
-            <PrivateRoute><EditVehicle /></PrivateRoute>
-          } />
+        
           <Route path="/vehicles/:id/fuel" element={
             <PrivateRoute><ViewFuelLogs /></PrivateRoute>
           } />

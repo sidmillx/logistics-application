@@ -23,6 +23,10 @@ const ViewFuelLogs = () => {
         const vehicleData = await vehicleRes.json();
         const logsData = await logsRes.json();
 
+        console.log(vehicleData);
+        console.log();
+        console.log(logsData);
+
         setVehicle(vehicleData);
         setLogs(logsData);
       } catch (err) {
@@ -34,7 +38,7 @@ const ViewFuelLogs = () => {
   }, [id]);
 
   const columns = [
-    { key: "date", title: "Date", render: (row) => new Date(row.date).toLocaleDateString() },
+    { key: "date", title: "Date", render: (row) => new Date(row).toLocaleDateString() },
     { key: "fuelType", title: "Fuel Type" },
     { key: "liters", title: "Litres" },
     { key: "cost", title: "Cost (E)" },

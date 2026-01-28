@@ -9,25 +9,49 @@ const Dashboard = () => {
   const [driverUtilization, setDriverUtilization] = useState([]);
   const [vehicleUtilization, setVehicleUtilization] = useState([]);
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const [summaryRes, driverRes, vehicleRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/admin/dashboard/summary`),
-          fetch(`${API_BASE_URL}/api/admin/dashboard/driver-utilization`),
-          fetch(`${API_BASE_URL}/api/admin/dashboard/vehicle-utilization`),
-        ]);
+useEffect(() => {
+  const fetchDashboardData = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("No token found. Please log in again.");
 
-        setSummary(await summaryRes.json());
-        setDriverUtilization(await driverRes.json());
-        setVehicleUtilization(await vehicleRes.json());
-      } catch (error) {
-        console.error("Failed to fetch dashboard data", error);
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      };
+
+      const [summaryRes, driverRes, vehicleRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/admin/dashboard/summary`, { headers }),
+        fetch(`${API_BASE_URL}/api/admin/dashboard/driver-utilization`, { headers }),
+        fetch(`${API_BASE_URL}/api/admin/dashboard/vehicle-utilization`, { headers }),
+      ]);
+
+      // Check for unauthorized or failed responses
+      if (!summaryRes.ok || !driverRes.ok || !vehicleRes.ok) {
+        throw new Error("One or more dashboard requests failed.");
       }
-    };
 
-    fetchDashboardData();
-  }, []);
+      const summaryData = await summaryRes.json();
+      const driverData = await driverRes.json();
+      const vehicleData = await vehicleRes.json();
+
+      console.log(driverData);
+
+
+      // Ensure data are arrays for charts
+      setSummary(summaryData || {});
+      setDriverUtilization(Array.isArray(driverData) ? driverData : []);
+      setVehicleUtilization(Array.isArray(vehicleData) ? vehicleData : []);
+    } catch (error) {
+      console.error("Failed to fetch dashboard data", error);
+      setDriverUtilization([]); // Prevent chart crash
+      setVehicleUtilization([]);
+    }
+  };
+
+  fetchDashboardData();
+}, []);
+
 
   return (
     <div>

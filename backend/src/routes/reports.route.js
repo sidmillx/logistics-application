@@ -7,6 +7,7 @@ import { eq, sql } from "drizzle-orm";
 import { applyFilters, sendPDF, sendCSV } from "../utils/reportsFunctions.js";
 import { format } from 'date-fns';
 import { exportFullReport } from '../controllers/exportController.js';
+import { authenticate } from "../middleware/auth.middleware.js";
 
 // Utility function to format dates consistently
 const formatDate = (date) => {
@@ -14,33 +15,32 @@ const formatDate = (date) => {
   return format(new Date(date), 'yyyy-MM-dd HH:mm');
 };
 
-// Trip reports
-// Updated Trip Reports endpoint
-router.get("/trips", async (req, res) => {
+
+router.get("/trips", authenticate, async (req, res) => {
   try {
-    // Build the query with fields that actually exist in your schema
-    const query = db.select({
+    // Base query
+    let query = db.select({
       id: trips.id,
       date: trips.checkInTime,
       driver: sql`COALESCE(${usersTable.fullname}, 'Unassigned')`.as('driver'),
       vehicle: sql`COALESCE(${vehicles.plateNumber}, 'N/A')`.as('vehicle'),
       route: sql`CONCAT(
         COALESCE(${trips.locationStart}, 'Unknown'), 
-        ' → ', 
+        ' to ', 
         COALESCE(${trips.locationEnd}, 'Unknown')
       )`.as('route'),
       distance: sql`COALESCE(${trips.odometerEnd} - ${trips.odometerStart}, 0)`.mapWith(Number),
       duration: sql`COALESCE(EXTRACT(EPOCH FROM (${trips.checkOutTime} - ${trips.checkInTime}))/3600, 0)`.mapWith(Number),
-      // Removed tripPurpose since it's not in the trips table
-      // If you need it, you'll need to join with checkins table
     })
     .from(trips)
     .leftJoin(usersTable, eq(trips.driverId, usersTable.id))
     .leftJoin(vehicles, eq(trips.vehicleId, vehicles.id));
 
-    // If you need trip purpose, you would need to join with checkins:
-    // .leftJoin(checkins, eq(trips.id, checkins.tripId))
-    // And add to select: purpose: checkins.tripPurpose
+    // --- ROLE-BASED FILTERING ---
+    if (req.user.role !== "super_admin") {
+      // Only show trips for the admin's own entity
+      query = query.where(eq(vehicles.entityId, req.user.entityId));
+    }
 
     const rows = await query;
 
@@ -50,7 +50,6 @@ router.get("/trips", async (req, res) => {
       date: formatDate(row.date),
       distance: `${row.distance.toFixed(1)} km`,
       duration: `${row.duration.toFixed(1)} hrs`,
-      // purpose: row.purpose || 'Not specified' // Would be available if you join with checkins
     }));
 
     res.json({
@@ -61,7 +60,6 @@ router.get("/trips", async (req, res) => {
         { key: "route", title: "Route" },
         { key: "distance", title: "Distance", type: "number" },
         { key: "duration", title: "Duration", type: "number" },
-        // { key: "purpose", title: "Purpose" }, // Include if you add the checkins join
       ],
       rows: formattedRows
     });
@@ -75,8 +73,9 @@ router.get("/trips", async (req, res) => {
   }
 });
 
-// FUEL REPORTS
-router.get("/fuel", async (req, res) => {
+
+
+router.get("/fuel", authenticate, async (req, res) => {
   try {
     let query = db.select({
       id: fuelLogs.id,
@@ -95,6 +94,12 @@ router.get("/fuel", async (req, res) => {
     .leftJoin(trips, eq(fuelLogs.tripId, trips.id))
     .leftJoin(usersTable, eq(trips.driverId, usersTable.id));
 
+    // Apply role-based and entity-based filtering
+    if (req.user.role !== "super_admin") {
+      // Normal admins see only fuel logs for vehicles in their entity
+      query = query.where(eq(vehicles.entityId, req.user.entityId));
+    }
+
     query = applyFilters(query, req.query);
     let rows = await query;
 
@@ -105,7 +110,7 @@ router.get("/fuel", async (req, res) => {
       driver: row.driver || 'Unassigned',
       vehicle: row.vehicle || 'N/A',
       litres: row.litres ? `${row.litres} L` : 'N/A',
-      cost: row.cost ? `E${(row.cost / 100).toFixed(2)}` : 'N/A',
+      cost: row.cost != null ? `E${Number(row.cost).toFixed(2)}` : 'N/A',
       costPerLitre: row.costPerLitre ? `E${(row.costPerLitre / 100).toFixed(2)}/L` : 'N/A',
       odometer: row.odometer ? `${row.odometer} km` : 'N/A',
       location: row.location || 'Unknown',
@@ -132,8 +137,7 @@ router.get("/fuel", async (req, res) => {
   }
 });
 
-// DRIVER REPORTS
-router.get("/drivers", async (req, res) => {
+router.get("/drivers", authenticate, async (req, res) => {
   try {
     let query = db.select({
       id: usersTable.id,
@@ -146,12 +150,18 @@ router.get("/drivers", async (req, res) => {
     .from(usersTable)
     .leftJoin(trips, eq(usersTable.id, trips.driverId))
     .where(eq(usersTable.role, 'driver'))
-    .groupBy(usersTable.id);
+    .groupBy(usersTable.id, usersTable.fullname); // <-- Fix: group by all non-aggregated columns
+
+    // Role-based / Entity filtering
+    if (req.user.role !== "super_admin") {
+      query = query
+        .leftJoin(vehicles, eq(trips.vehicleId, vehicles.id))
+        .where(eq(vehicles.entityId, req.user.entityId));
+    }
 
     query = applyFilters(query, req.query);
     let rows = await query;
 
-    // Format data
     rows = rows.map(row => ({
       ...row,
       totalTrips: row.totalTrips || 0,
@@ -176,8 +186,10 @@ router.get("/drivers", async (req, res) => {
   }
 });
 
-// VEHICLE REPORTS
-router.get("/vehicles", async (req, res) => {
+
+
+
+router.get("/vehicles", authenticate, async (req, res) => {
   try {
     let query = db.select({
       id: vehicles.id,
@@ -194,13 +206,18 @@ router.get("/vehicles", async (req, res) => {
     })
     .from(vehicles)
     .leftJoin(trips, eq(vehicles.id, trips.vehicleId))
-    .leftJoin(fuelLogs, eq(fuelLogs.vehicleId, vehicles.id))
-    .groupBy(vehicles.id);
+    .leftJoin(fuelLogs, eq(fuelLogs.vehicleId, vehicles.id));
 
+    // Role-based / Entity filtering
+    if (req.user.role !== "super_admin") {
+      query = query.where(eq(vehicles.entityId, req.user.entityId));
+    }
+
+    query = query.groupBy(vehicles.id);
     query = applyFilters(query, req.query);
+
     let rows = await query;
 
-    // Format data
     rows = rows.map(row => ({
       ...row,
       vehicle: row.vehicle || 'Unknown',
@@ -236,7 +253,8 @@ router.get("/vehicles", async (req, res) => {
   }
 });
 
-// Export endpoints
+
+
 router.get("/:type/export-pdf", async (req, res) => {
   try {
     const { type } = req.params;
@@ -244,19 +262,19 @@ router.get("/:type/export-pdf", async (req, res) => {
 
     switch (type) {
       case 'trips':
-        rows = await getTripReportRows(req.query);
+        rows = await getTripReportRows(req.query, req.user); // pass user
         sendPDF(res, rows, "Trip Report", "trip-report.pdf");
         break;
       case 'fuel':
-        rows = await getFuelReportRows(req.query);
+        rows = await getFuelReportRows(req.query, req.user);
         sendPDF(res, rows, "Fuel Report", "fuel-report.pdf");
         break;
       case 'drivers':
-        rows = await getDriverReportRows(req.query);
+        rows = await getDriverReportRows(req.query, req.user);
         sendPDF(res, rows, "Driver Report", "driver-report.pdf");
         break;
       case 'vehicles':
-        rows = await getVehicleReportRows(req.query);
+        rows = await getVehicleReportRows(req.query, req.user);
         sendPDF(res, rows, "Vehicle Report", "vehicle-report.pdf");
         break;
       default:
@@ -275,19 +293,19 @@ router.get("/:type/export-excel", async (req, res) => {
 
     switch (type) {
       case 'trips':
-        rows = await getTripReportRows(req.query);
+        rows = await getTripReportRows(req.query, req.user);
         sendCSV(res, rows, "trip-report.csv");
         break;
       case 'fuel':
-        rows = await getFuelReportRows(req.query);
+        rows = await getFuelReportRows(req.query, req.user);
         sendCSV(res, rows, "fuel-report.csv");
         break;
       case 'drivers':
-        rows = await getDriverReportRows(req.query);
+        rows = await getDriverReportRows(req.query, req.user);
         sendCSV(res, rows, "driver-report.csv");
         break;
       case 'vehicles':
-        rows = await getVehicleReportRows(req.query);
+        rows = await getVehicleReportRows(req.query, req.user);
         sendCSV(res, rows, "vehicle-report.csv");
         break;
       default:
@@ -299,8 +317,8 @@ router.get("/:type/export-excel", async (req, res) => {
   }
 });
 
-// Helper functions for exports
-async function getTripReportRows(filters) {
+
+async function getTripReportRows(filters, user) {
   let query = db.select({
     date: trips.checkInTime,
     driver: sql`CONCAT(${usersTable.fullname})`.as('driver'),
@@ -314,11 +332,16 @@ async function getTripReportRows(filters) {
   .leftJoin(usersTable, eq(trips.driverId, usersTable.id))
   .leftJoin(vehicles, eq(trips.vehicleId, vehicles.id));
 
+  // Entity-based filtering for non-super-admins
+  if (user.role !== 'super_admin') {
+    query = query.where(eq(vehicles.entityId, user.entityId));
+  }
+
   query = applyFilters(query, filters);
   return await query;
 }
 
-async function getFuelReportRows(filters) {
+async function getFuelReportRows(filters, user) {
   let query = db.select({
     date: fuelLogs.timestamp,
     driver: sql`CONCAT(${usersTable.fullname})`.as('driver'),
@@ -335,11 +358,15 @@ async function getFuelReportRows(filters) {
   .leftJoin(trips, eq(fuelLogs.tripId, trips.id))
   .leftJoin(usersTable, eq(trips.driverId, usersTable.id));
 
+  if (user.role !== 'super_admin') {
+    query = query.where(eq(vehicles.entityId, user.entityId));
+  }
+
   query = applyFilters(query, filters);
   return await query;
 }
 
-async function getDriverReportRows(filters) {
+async function getDriverReportRows(filters, user) {
   let query = db.select({
     driver: usersTable.fullname,
     totalTrips: sql`COUNT(${trips.id})`.mapWith(Number),
@@ -352,11 +379,18 @@ async function getDriverReportRows(filters) {
   .where(eq(usersTable.role, 'driver'))
   .groupBy(usersTable.id);
 
+  if (user.role !== 'super_admin') {
+    // Only drivers with trips on vehicles of this entity
+    query = query
+      .leftJoin(vehicles, eq(trips.vehicleId, vehicles.id))
+      .where(eq(vehicles.entityId, user.entityId));
+  }
+
   query = applyFilters(query, filters);
   return await query;
 }
 
-async function getVehicleReportRows(filters) {
+async function getVehicleReportRows(filters, user) {
   let query = db.select({
     vehicle: vehicles.plateNumber,
     make: vehicles.make,
@@ -373,6 +407,10 @@ async function getVehicleReportRows(filters) {
   .leftJoin(trips, eq(vehicles.id, trips.vehicleId))
   .leftJoin(fuelLogs, eq(fuelLogs.vehicleId, vehicles.id))
   .groupBy(vehicles.id);
+
+  if (user.role !== 'super_admin') {
+    query = query.where(eq(vehicles.entityId, user.entityId));
+  }
 
   query = applyFilters(query, filters);
   return await query;

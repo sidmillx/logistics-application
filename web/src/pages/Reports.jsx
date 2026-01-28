@@ -64,42 +64,57 @@ const Reports = () => {
     vehicles: true,
   });
 
-  const loadData = async (filtersToUse) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams();
-      Object.entries(filtersToUse).forEach(([key, value]) => {
-        if (value) params.append(key, value);
-      });
 
-      const res = await fetch(`${API_BASE_URL}/api/admin/reports/${activeTab}?${params}`);
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-      const data = await res.json();
+const loadData = async (filtersToUse) => {
+  setLoading(true);
+  setError(null);
+  try {
+    const params = new URLSearchParams();
+    Object.entries(filtersToUse).forEach(([key, value]) => {
+      if (value) params.append(key, value);
+    });
 
-      if (!data?.columns || !data?.rows) throw new Error("Invalid data format from server");
+    // Get the token (adjust storage if needed)
+    const token = localStorage.getItem("token");
 
-      const formattedColumns = data.columns.map((col) => ({
-        ...col,
-        accessor: col.key,
-        Cell: ({ value }) => {
-          if (col.type === "date") return formatDate(value);
-          if (col.type === "number") return formatNumber(value);
-          return formatText(value);
+    const res = await fetch(
+      `${API_BASE_URL}/api/admin/reports/${activeTab}?${params}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`, // Include the JWT token
         },
-      }));
+      }
+    );
 
-      setColumns(formattedColumns);
-      setTableData(data.rows || []);
-    } catch (err) {
-      console.error("Fetch error:", err);
-      setError(err.message || "Failed to load data");
-      setTableData([]);
-      setColumns([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+    const data = await res.json();
+
+    if (!data?.columns || !data?.rows) throw new Error("Invalid data format from server");
+
+    const formattedColumns = data.columns.map((col) => ({
+      ...col,
+      accessor: col.key,
+      Cell: ({ value }) => {
+        if (col.type === "date") return formatDate(value);
+        if (col.type === "number") return formatNumber(value);
+        return formatText(value);
+      },
+    }));
+
+    console.log(data.rows)
+
+    setColumns(formattedColumns);
+    setTableData(data.rows || []);
+  } catch (err) {
+    console.error("Fetch error:", err);
+    setError(err.message || "Failed to load data");
+    setTableData([]);
+    setColumns([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     const initialFilters = defaultFilters[activeTab];
@@ -111,72 +126,204 @@ const Reports = () => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
-  const exportFile = async (type) => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value) params.append(key, value);
-      });
+  // const exportFile = async (type) => {
+  //   try {
+  //     setLoading(true);
+  //     const params = new URLSearchParams();
+  //     Object.entries(filters).forEach(([key, value]) => {
+  //       if (value) params.append(key, value);
+  //     });
 
-      const res = await fetch(
-        `${API_BASE_URL}/api/admin/reports/${activeTab}/export-${type}?${params}`
-      );
+  //     const res = await fetch(
+  //       `${API_BASE_URL}/api/admin/reports/${activeTab}/export-${type}?${params}`
+  //     );
 
-      if (!res.ok) throw new Error(`Export failed with status ${res.status}`);
-      const blob = await res.blob();
-      const ext = type === "excel" ? "xlsx" : "pdf";
-      saveAs(blob, `${activeTab}-report.${ext}`);
-    } catch (err) {
-      console.error("Export failed:", err);
-      setError(err.message || "Export failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     if (!res.ok) throw new Error(`Export failed with status ${res.status}`);
+  //     const blob = await res.blob();
+  //     const ext = type === "excel" ? "xlsx" : "pdf";
+  //     saveAs(blob, `${activeTab}-report.${ext}`);
+  //   } catch (err) {
+  //     console.error("Export failed:", err);
+  //     setError(err.message || "Export failed");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+const exportFile = async (type) => {
+  try {
+    setLoading(true);
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) params.append(key, value);
+    });
 
-  const exportAllData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const params = new URLSearchParams();
-      params.append("scope", exportScope);
-      
-      if (exportScope === "custom") {
-        if (customDateFrom) params.append("customDateFrom", customDateFrom);
-        if (customDateTo) params.append("customDateTo", customDateTo);
+    // Get your token (e.g., from localStorage)
+    const token = localStorage.getItem("token"); // adjust if you store it elsewhere
+
+    const res = await fetch(
+      `${API_BASE_URL}/api/admin/reports/${activeTab}/export-${type}?${params}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`, // Add the token here
+        },
       }
-      
-      // Add which reports to include
-      Object.entries(includedReports).forEach(([report, include]) => {
-        if (include) params.append(`include_${report}`, "true");
-      });
+    );
 
-      const res = await fetch(
-        `${API_BASE_URL}/api/admin/reports/export-full-excel?${params}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
+    if (!res.ok) throw new Error(`Export failed with status ${res.status}`);
+    const blob = await res.blob();
+    const ext = type === "excel" ? "xlsx" : "pdf";
+    saveAs(blob, `${activeTab}-report.${ext}`);
+  } catch (err) {
+    console.error("Export failed:", err);
+    setError(err.message || "Export failed");
+  } finally {
+    setLoading(false);
+  }
+};
 
-      if (!res.ok) throw new Error(`Export failed with status ${res.status}`);
-      const blob = await res.blob();
+  // const exportAllData = async () => {
+  //   try {
+  //     setLoading(true);
+  //     setError(null);
       
-      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
-      saveAs(blob, `full-report-${timestamp}.xlsx`);
+  //     const params = new URLSearchParams();
+  //     params.append("scope", exportScope);
       
-      setShowExportModal(false);
-    } catch (err) {
-      console.error("Export failed:", err);
-      setError(err.message || "Full export failed");
-    } finally {
-      setLoading(false);
+  //     if (exportScope === "custom") {
+  //       if (customDateFrom) params.append("customDateFrom", customDateFrom);
+  //       if (customDateTo) params.append("customDateTo", customDateTo);
+  //     }
+      
+  //     // Add which reports to include
+  //     Object.entries(includedReports).forEach(([report, include]) => {
+  //       if (include) params.append(`include_${report}`, "true");
+  //     });
+
+  //     const res = await fetch(
+  //       `${API_BASE_URL}/api/admin/reports/export-full-excel?${params}`,
+  //       {
+  //         headers: {
+  //           "Content-Type": "application/json",
+  //         },
+  //       }
+  //     );
+
+  //     if (!res.ok) throw new Error(`Export failed with status ${res.status}`);
+  //     const blob = await res.blob();
+      
+  //     const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  //     saveAs(blob, `full-report-${timestamp}.xlsx`);
+      
+  //     setShowExportModal(false);
+  //   } catch (err) {
+  //     console.error("Export failed:", err);
+  //     setError(err.message || "Full export failed");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+const exportAllData = async () => {
+  try {
+    setLoading(true);
+    setError(null);
+    
+    const params = new URLSearchParams();
+    params.append("scope", exportScope);
+    
+    // Handle date range based on scope
+    if (exportScope === "custom") {
+      // Use custom dates from the modal
+      if (customDateFrom) {
+        params.append("customDateFrom", customDateFrom);
+      }
+      if (customDateTo) {
+        params.append("customDateTo", customDateTo);
+      }
+    } else if (exportScope === "current") {
+      // Pass current filter dates if they exist
+      if (filters.dateFrom) {
+        params.append("dateFrom", filters.dateFrom);
+      }
+      if (filters.dateTo) {
+        params.append("dateTo", filters.dateTo);
+      }
+    } else if (exportScope === "all") {
+      // For "all records", don't send any date filters
+      // Or send specific parameters if needed
     }
-  };
+    
+    // Check if at least one report is selected
+    const selectedReports = Object.entries(includedReports)
+      .filter(([_, include]) => include)
+      .map(([report]) => report);
+    
+    if (selectedReports.length === 0) {
+      setError("Please select at least one report type to export");
+      setLoading(false);
+      return;
+    }
+    
+    // DEBUG: Log what we're about to send
+    console.log('Selected reports for export:', selectedReports);
+    
+    // Add which reports to include (only send true values)
+    selectedReports.forEach(report => {
+      params.append(`include_${report}`, "true");
+    });
 
+    // Add any other existing filters
+    if (filters.driver) params.append("driverId", filters.driver);
+    if (filters.vehicle) params.append("vehicleId", filters.vehicle);
+    if (filters.entity) params.append("entityId", filters.entity);
+
+    // DEBUG: Log the complete URL with parameters
+    const apiUrl = `${API_BASE_URL}/api/admin/reports/export-full-excel?${params}`;
+    console.log('Making export request to:', apiUrl);
+    
+    // Add authorization token
+    const token = localStorage.getItem("token");
+
+    const res = await fetch(
+      apiUrl,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!res.ok) {
+      if (res.status === 400) {
+        const errorData = await res.json();
+        throw new Error(`Export failed: ${errorData.error}`);
+      }
+      throw new Error(`Export failed with status: ${res.status}`);
+    }
+    
+    const blob = await res.blob();
+    
+    // Get filename from Content-Disposition header or use default
+    const contentDisposition = res.headers.get('content-disposition');
+    let filename = `full-report-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+      if (filenameMatch) filename = filenameMatch[1];
+    }
+    
+    saveAs(blob, filename);
+    
+    setShowExportModal(false);
+  } catch (err) {
+    console.error("Export failed:", err);
+    setError(err.message || "Full export failed");
+  } finally {
+    setLoading(false);
+  }
+};
   const toggleReportInclusion = (report) => {
     setIncludedReports(prev => ({
       ...prev,

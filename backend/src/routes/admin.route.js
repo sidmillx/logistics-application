@@ -13,7 +13,7 @@ import {
   supervisors,
   vehicles
 } from "../db/schema.js";
-import { and, eq, isNotNull, sql, gte, lte, desc, isNull  } from "drizzle-orm";
+import { and, eq, isNotNull, sql, gte, lte, desc, isNull, inArray  } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
 
@@ -23,83 +23,8 @@ const router = express.Router();
 
 
 
-import { inArray } from "drizzle-orm";
-
-// router.get("/supervision-logs", async (req, res) => {
-//   try {
-//     // First get the basic supervision data
-//     const supervisionData = await db
-//       .select({
-//         id: supervisions.id,
-//         supervisorId: supervisions.supervisorId,
-//         driverId: supervisions.driverId,
-//         assignedAt: supervisions.createdAt,
-//       })
-//       .from(supervisions);
-
-//     if (supervisionData.length === 0) {
-//       return res.json([]);
-//     }
-
-//     // Get all unique user IDs involved
-//     const userIds = [
-//       ...new Set([
-//         ...supervisionData.map(s => s.supervisorId),
-//         ...supervisionData.map(s => s.driverId)
-//       ])
-//     ].filter(Boolean); // Remove any null/undefined values
-
-//     // Get user details using inArray
-//     const users = await db
-//       .select({
-//         id: usersTable.id,
-//         fullname: usersTable.fullname,
-//       })
-//       .from(usersTable)
-//       .where(inArray(usersTable.id, userIds));
-
-//     // Get driver IDs for assignments
-//     const driverIds = supervisionData.map(s => s.driverId).filter(Boolean);
-
-//     // Get assignments and vehicles
-//     const assignmentData = driverIds.length > 0 ? await db
-//       .select({
-//         driverId: assignments.driverId,
-//         plateNumber: vehicles.plateNumber,
-//       })
-//       .from(assignments)
-//       .leftJoin(vehicles, eq(vehicles.id, assignments.vehicleId))
-//       .where(inArray(assignments.driverId, driverIds)) : [];
-
-//     // Combine the data
-//     const logs = supervisionData.map(supervision => {
-//       const supervisor = users.find(u => u.id === supervision.supervisorId);
-//       const driver = users.find(u => u.id === supervision.driverId);
-//       const assignment = assignmentData.find(a => a.driverId === supervision.driverId);
-
-//       return {
-//         supervisorName: supervisor?.fullname || null,
-//         driverName: driver?.fullname || null,
-//         assignedAt: supervision.assignedAt,
-//         plateNumber: assignment?.plateNumber || null,
-//       };
-//     });
-
-//     res.json(logs);
-//   } catch (err) {
-//     console.error("Error fetching supervision logs:", err);
-//     res.status(500).json({ message: "Failed to fetch supervision logs" });
-//   }
-// });
-
-
-
-
 
 //================================================ DRIVER MANAGEMENT =======================================
-
-
-
 
 router.get("/supervision-logs", authenticate, async (req, res) => {
   try {
@@ -209,48 +134,6 @@ router.get("/supervision-logs", authenticate, async (req, res) => {
  * 500 - Server error
  * 
  */
-// router.get("/drivers", async (req, res) => {
-//   try {
-//     // First get all active driver IDs (those currently on trips)
-//     const activeDriverResults = await db
-//       .select({ 
-//         driverId: trips.driverId 
-//       })
-//       .from(trips)
-//       .where(
-//         and(
-//           isNotNull(trips.checkInTime),
-//           isNull(trips.checkOutTime)
-//         )
-//       )
-//       .groupBy(trips.driverId);
-
-//     const activeDriverIds = activeDriverResults.map(d => d.driverId);
-
-//     // Then get all drivers with their details
-//     const allDrivers = await db
-//       .select({
-//         id: drivers.id,
-//         name: usersTable.fullname,
-//         contact: drivers.contact,
-//         entityName: entities.name,
-//       })
-//       .from(drivers)
-//       .leftJoin(usersTable, eq(drivers.id, usersTable.id))
-//       .leftJoin(entities, eq(drivers.entityId, entities.id));
-
-//     // Augment each driver with active status
-//     const results = allDrivers.map(driver => ({
-//       ...driver,
-//       isActive: activeDriverIds.includes(driver.id)
-//     }));
-
-//     res.json(results);
-//   } catch (err) {
-//     console.error("Failed to fetch drivers:", err);
-//     res.status(500).json({ error: "Failed to fetch drivers" });
-//   }
-// });
 
 router.get(
   "/drivers",
@@ -261,7 +144,7 @@ router.get(
       const { role, entityId } = req.user;
       console.log(`Role: ${role} /n Entity ID: ${entityId}`)
 
-      // 1️⃣ Get active driver IDs (on active trips)
+      // 1 Get active driver IDs (on active trips)
       const activeDriverResults = await db
         .select({ driverId: trips.driverId })
         .from(trips)
@@ -270,7 +153,7 @@ router.get(
 
       const activeDriverIds = activeDriverResults.map((d) => d.driverId);
 
-      // 2️⃣ Base query for all drivers
+      // 2 Base query for all drivers
       let query = db
         .select({
           id: drivers.id,
@@ -282,14 +165,14 @@ router.get(
         .leftJoin(usersTable, eq(drivers.id, usersTable.id))
         .leftJoin(entities, eq(drivers.entityId, entities.id));
 
-      // 3️⃣ Restrict for admin role
+      // 3 Restrict for admin role
       if (role === "admin" && entityId) {
         query = query.where(eq(drivers.entityId, entityId));
       }
 
       const allDrivers = await query;
 
-      // 4️⃣ Add active status
+      //  Add active status
       const results = allDrivers.map((driver) => ({
         ...driver,
         isActive: activeDriverIds.includes(driver.id),
@@ -302,6 +185,7 @@ router.get(
     }
   }
 );
+
 /** GET /api/admin/drivers/summary
  * 
  * Description:
@@ -312,55 +196,8 @@ router.get(
  * 500 - Server error
  * 
  */
-// router.get("/drivers/summary", async (req, res) => {
-//   try {
-//     // Get active drivers (currently on trips)
-//     const activeDrivers = await db
-//       .select({ 
-//         driverId: trips.driverId 
-//       })
-//       .from(trips)
-//       .where(
-//         and(
-//           isNotNull(trips.checkInTime),
-//           isNull(trips.checkOutTime)
-//         )
-//       )
-//       .groupBy(trips.driverId);
 
-//     // Get total driver count
-//     const totalDrivers = await db
-//       .select({ count: sql`count(*)` })
-//       .from(drivers);
 
-//     // Get trip statistics - FIXED VERSION
-//     const tripStats = await db
-//       .select({
-//         totalTrips: sql`count(*)`,
-//         avgTrips: sql`ROUND(avg(count)::numeric, 1)`
-//       })
-//       .from(
-//         db
-//           .select({
-//             driverId: trips.driverId,
-//             count: sql`count(*)`.mapWith(Number)
-//           })
-//           .from(trips)
-//           .groupBy(trips.driverId)
-//           .as("driver_trips")
-//       );
-
-//     res.json({
-//       totalDrivers: Number(totalDrivers[0].count),
-//       activeDrivers: activeDrivers.length,
-//       avgTripsPerDriver: tripStats[0].avgTrips || 0,
-//       totalTrips: tripStats[0].totalTrips || 0
-//     });
-//   } catch (err) {
-//     console.error("Failed to load driver summary:", err);
-//     res.status(500).json({ error: "Failed to fetch driver summary" });
-//   }
-// });
 router.get("/drivers/summary", authenticate, async (req, res) => {
   try {
     const { role, entityId } = req.user;
@@ -434,6 +271,7 @@ router.get("/drivers/summary", authenticate, async (req, res) => {
   }
 });
 
+
 /** GET /api/admin/drivers/:id
  * 
  * Description:
@@ -443,8 +281,7 @@ router.get("/drivers/summary", authenticate, async (req, res) => {
  * {
  *    "driverId": "string"
  * }
- * 
- * 
+ *  
  * 
  * Responses:
  * 500 - Failed to get driver profile
@@ -716,15 +553,6 @@ router.delete("/drivers/:id", async (req, res) => {
  * 500 - Failed to fetch users
  */
 
-// router.get("/users", async (req, res) => {
-//   try {
-//     const allUsers = await db.select().from(usersTable);
-//     res.json(allUsers);
-//   } catch (err) {
-//     res.status(500).json({ error: "Failed to fetch users" });
-//   }
-// });
-
 
 router.get("/users", authenticate, async (req, res) => {
   try {
@@ -953,52 +781,7 @@ router.delete("/users/:id", async (req, res) => {
 
 // ==== ENTITIES ====
 // GET: Overview of entities and vehicles
-// router.get("/entities/overview", async (req, res) => {
-//   try {
-//     const entitiesData = await db.select().from(entities);
-//     const vehiclesData = await db.select().from(vehicles);
 
-//     console.log(entitiesData);
-//     console.log(vehiclesData);
-
-//     const entitySummaries = entitiesData.map((entity) => {
-//       const relatedVehicles = vehiclesData.filter(
-//         (v) => v.entityId === entity.id
-//       );
-
-//       const total = relatedVehicles.length;
-//       const inUse = relatedVehicles.filter((v) => v.status === "in-use").length;
-//       const available = relatedVehicles.filter((v) => v.status === "available").length;
-//       const maintenance = relatedVehicles.filter((v) => v.status === "maintenance").length;
-
-//       return {
-//         id: entity.id,
-//         name: entity.name,
-//         totalVehicles: total,
-//         vehiclesInUse: inUse,
-//         vehiclesAvailable: available,
-//         underMaintenance: maintenance,
-//       };
-//     });
-
-//     // Get totals across all entities
-//     const totalVehicles = vehiclesData.length;
-//     const totalEntities = entitiesData.length;
-//     const totalAvailable = vehiclesData.filter(v => v.status === "Available").length;
-
-//     res.json({
-//       entitySummaries,
-//       totalVehicles,
-//       totalEntities,
-//       totalAvailable,
-//     });
-
-//     // res.json([{ name: "Test Entity", totalVehicles: 10, vehiclesInUse: 5, vehiclesAvailable: 3, underMaintenance: 2 }]);
-//   } catch (err) {
-//     console.error("Error in /entities/overview:", err);
-//     res.status(500).json({ error: "Failed to load overview" });
-//   }
-// });
 
 
 router.get("/entities/overview", authenticate, async (req, res) => {
@@ -1294,10 +1077,6 @@ router.get("/fuel-logs", async (req, res) => {
 });
 
 
-
-
-
-
 // GET /api/admin/vehicles
 router.get(
   "/vehicles",
@@ -1336,22 +1115,10 @@ router.get(
   }
 );
 
-// router.get("/vehicles/summary", async (req, res) => {
-//   try {
-//     const all = await db.select().from(vehicles);
-//     const totalVehicles = all.length;
-//     const available = all.filter(v => v.status === "available").length || 0;
-//     const inUse = all.filter(v => v.status === "in-use").length || 0;
 
-//     // TODO: Replace with actual logic for fuel logged today
-//     const fuelLoggedToday = 0;
 
-//     res.json({ totalVehicles, available, inUse, fuelLoggedToday });
-//   } catch (err) {
-//     console.error("Failed to fetch vehicle summary:", err);
-//     res.status(500).json({ error: "Failed to fetch summary" });
-//   }
-// });
+
+
 router.get("/vehicles/summary", authenticate, async (req, res) => {
   try {
     const { role, entityId } = req.user;
@@ -1387,6 +1154,8 @@ router.get("/vehicles/summary", authenticate, async (req, res) => {
     res.status(500).json({ error: "Failed to fetch summary" });
   }
 });
+
+
 router.delete("/vehicles/:id", async (req, res) => {
   const { id } = req.params;
 
@@ -1416,8 +1185,9 @@ router.put("/vehicles/:id", async (req, res) => {
   }
 });
 
-// src/routes/admin.route.js (or equivalent)
 
+
+// src/routes/admin.route.js (or equivalent)
 // src/routes/admin.route.
 
 
@@ -1442,7 +1212,6 @@ router.get("/vehicles/:id", async (req, res) => {
 
 
 
-
 router.delete("/entities/:id", authenticate, authorize("super_admin"), async (req, res) => {
   try {
     await db.delete(entities).where(eq(entities.id, req.params.id));
@@ -1451,6 +1220,7 @@ router.delete("/entities/:id", authenticate, authorize("super_admin"), async (re
     res.status(500).json({ error: "Failed to delete entity" });
   }
 });
+
 
 
 router.get("/vehicles/:id/fuel-logs", async (req, res) => {
@@ -1472,12 +1242,13 @@ router.get("/vehicles/:id/fuel-logs", async (req, res) => {
       .where(eq(fuelLogs.vehicleId, vehicleId))
       .orderBy(fuelLogs.timestamp, "desc");
 
-    res.json(logs); // ✅ Send array directly
+    res.json(logs); // Send array directly
   } catch (error) {
     console.error("Error fetching fuel logs:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
 
 
 router.get("/trips/logs", authenticate, async (req, res) => {
@@ -1529,23 +1300,33 @@ router.get("/trips/logs", authenticate, async (req, res) => {
   }
 });
 
-router.get("/drivers/utilization/summary", async (req, res) => {
+
+
+
+router.get("/drivers/utilization/summary", authenticate, async (req, res) => {
   try {
+    const user = req.user;
+    const isSuperAdmin = user.role === "super_admin";
+    const entityId = user.entityId;
+
     const thisMonth = new Date();
-    thisMonth.setDate(1); // first day of current month
+    thisMonth.setDate(1); // first day of month
 
-    const totalDrivers = await db.select({ count: sql`count(distinct(${drivers.id}))` }).from(drivers);
+    // Trip conditions
+    const tripConditions = [gte(trips.checkInTime, thisMonth), isNotNull(trips.checkOutTime)];
+    let totalDriversQuery = db.select({ count: sql`COUNT(DISTINCT ${drivers.id})` }).from(drivers);
+    if (!isSuperAdmin && entityId) {
+      tripConditions.push(eq(vehicles.entityId, entityId));
+      totalDriversQuery.where(eq(drivers.entityId, entityId));
+    }
 
-    const totalTripsThisMonth = await db.select({ count: sql`count(*)` })
+    const totalDrivers = await totalDriversQuery;
+    const totalTripsThisMonth = await db.select({ count: sql`COUNT(*)` })
       .from(trips)
-      .where(
-  and(
-    gte(trips.checkInTime, thisMonth),
-    isNotNull(trips.checkOutTime)
-  )
-);
+      .leftJoin(vehicles, eq(trips.vehicleId, vehicles.id))
+      .where(and(...tripConditions));
 
-    const avgTripsPerDriver = totalTripsThisMonth[0].count / totalDrivers[0].count;
+    const avgTripsPerDriver = totalDrivers[0].count > 0 ? totalTripsThisMonth[0].count / totalDrivers[0].count : 0;
 
     res.json({
       totalActiveDrivers: totalDrivers[0].count,
@@ -1553,51 +1334,175 @@ router.get("/drivers/utilization/summary", async (req, res) => {
       avgTripsPerDriver: parseFloat(avgTripsPerDriver.toFixed(1)),
     });
   } catch (err) {
-    console.error(err);
+    console.error("Driver utilization summary error:", err);
     res.status(500).json({ error: "Failed to fetch summary" });
   }
 });
 
 
-router.get("/drivers/utilization/details", async (req, res) => {
+
+// router.get("/drivers/utilization/details", authenticate, async (req, res) => {
+//   try {
+//     const user = req.user; // from your auth middleware
+//     const isSuperAdmin = user.role === "super_admin";
+//     const entityId = user.entity_id;
+
+//     const thisMonth = new Date();
+//     thisMonth.setDate(1);
+
+//     // Apply entity-based filtering
+//     const baseConditions = [
+//       gte(trips.checkInTime, thisMonth),
+//       isNotNull(trips.checkOutTime),
+//     ];
+
+//     // Only add entity filter if not super admin
+//     if (!isSuperAdmin && entityId) {
+//       baseConditions.push(eq(trips.entityId, entityId));
+//     }
+
+//     const details = await db
+//       .select({
+//         driverId: trips.driverId,
+//         name: usersTable.fullname,
+//         trips: sql`COUNT(*)`,
+//         hoursMs: sql`SUM(EXTRACT(EPOCH FROM (check_out_time - check_in_time)) * 1000)`,
+//         distanceTotal: sql`SUM(odometer_end - odometer_start)`,
+//       })
+//       .from(trips)
+//       .innerJoin(usersTable, eq(usersTable.id, trips.driverId))
+//       .where(and(...baseConditions))
+//       .groupBy(trips.driverId, usersTable.fullname);
+
+//     const result = details.map((d) => ({
+//       id: d.driverId,
+//       name: d.name,
+//       trips: Number(d.trips) || 0,
+//       hours: Math.round((Number(d.hoursMs) || 0) / 3600000), // ms → hours
+//       avgDistance:
+//         d.trips > 0
+//           ? `${Math.round((Number(d.distanceTotal) || 0) / d.trips)} km`
+//           : "0 km",
+//     }));
+
+//     res.json(result);
+//   } catch (err) {
+//     console.error("Driver utilization details error:", err);
+//     res.status(500).json({ error: "Failed to fetch driver utilization details" });
+//   }
+// });
+
+// router.get("/drivers/utilization/details", authenticate, async (req, res) => {
+//   try {
+//     const user = req.user; // from your auth middleware
+//     const isSuperAdmin = user.role === "super_admin";
+//     const entityId = user.entity_id;
+
+//     const thisMonth = new Date();
+//     thisMonth.setDate(1); // first day of current month
+
+//     // Base conditions: trips this month with check-out done
+//     const baseConditions = [
+//       gte(trips.checkInTime, thisMonth),
+//       isNotNull(trips.checkOutTime),
+//     ];
+
+//     // Only add entity filter if not super admin
+//     // Join drivers table to get their entityId
+//     if (!isSuperAdmin && entityId) {
+//       baseConditions.push(eq(drivers.entityId, entityId));
+//     }
+
+//     const details = await db
+//       .select({
+//         driverId: trips.driverId,
+//         name: usersTable.fullname,
+//         trips: sql`COUNT(*)`,
+//         hoursMs: sql`SUM(EXTRACT(EPOCH FROM (check_out_time - check_in_time)) * 1000)`,
+//         distanceTotal: sql`SUM(odometer_end - odometer_start)`,
+//       })
+//       .from(trips)
+//       .innerJoin(usersTable, eq(usersTable.id, trips.driverId))
+//       .innerJoin(drivers, eq(drivers.id, trips.driverId)) // join to apply entity filter
+//       .where(and(...baseConditions))
+//       .groupBy(trips.driverId, usersTable.fullname);
+
+//     const result = details.map((d) => ({
+//       id: d.driverId,
+//       name: d.name,
+//       trips: Number(d.trips) || 0,
+//       hours: Math.round((Number(d.hoursMs) || 0) / 3600000), // ms → hours
+//       avgDistance:
+//         d.trips > 0
+//           ? `${Math.round((Number(d.distanceTotal) || 0) / d.trips)} km`
+//           : "0 km",
+//     }));
+
+//     res.json(result);
+//   } catch (err) {
+//     console.error("Driver utilization details error:", err);
+//     res.status(500).json({ error: "Failed to fetch driver utilization details" });
+//   }
+// });
+
+router.get("/drivers/utilization/details", authenticate, async (req, res) => {
   try {
+    const user = req.user;
+    const isSuperAdmin = user.role === "super_admin";
+    const entityId = user.entity_id;
+
     const thisMonth = new Date();
-    thisMonth.setDate(1);
+    thisMonth.setDate(1); // first day of current month
 
-    const details = await db.select({
-      driverId: trips.driverId,
-      name: usersTable.fullname,
-      trips: sql`count(*)`,
-      hoursMs: sql`SUM(
-        EXTRACT(EPOCH FROM (check_out_time - check_in_time)) * 1000
-      )`,
-      distanceTotal: sql`SUM(odometer_end - odometer_start)`
-    })
-    .from(trips)
-    .innerJoin(usersTable, eq(usersTable.id, trips.driverId))
-    .where(
-  and(
-    gte(trips.checkInTime, thisMonth),
-    isNotNull(trips.checkOutTime)
-  )
-)
-    .groupBy(trips.driverId, usersTable.fullname);
+    // Base conditions
+    const baseConditions = [
+      gte(trips.checkInTime, thisMonth),
+      isNotNull(trips.checkOutTime),
+    ];
 
-    const result = details.map(d => ({
+    // Build query
+    let query = db
+      .select({
+        driverId: trips.driverId,
+        name: usersTable.fullname,
+        trips: sql`COUNT(*)`,
+        hoursMs: sql`SUM(EXTRACT(EPOCH FROM (check_out_time - check_in_time)) * 1000)`,
+        distanceTotal: sql`SUM(odometer_end - odometer_start)`,
+      })
+      .from(trips)
+      .innerJoin(usersTable, eq(usersTable.id, trips.driverId))
+      .innerJoin(drivers, eq(drivers.id, trips.driverId));
+
+    // Entity filter (for non-super admins)
+    if (!isSuperAdmin && entityId) {
+      query = query.where(eq(drivers.entityId, entityId));
+    }
+
+    // Apply base conditions
+    query = query.where(and(...baseConditions));
+
+    // ✅ Correct groupBy fields
+    query = query.groupBy(trips.driverId, usersTable.fullname);
+
+    const details = await query;
+
+    const result = details.map((d) => ({
       id: d.driverId,
       name: d.name,
-      trips: d.trips,
-      hours: Math.round(d.hoursMs / (3600000)), // ms to hours
-      avgDistance: `${Math.round(d.distanceTotal / d.trips)} km`
+      trips: Number(d.trips) || 0,
+      hours: Math.round((Number(d.hoursMs) || 0) / 3600000), // convert ms → hours
+      avgDistance:
+        d.trips > 0
+          ? `${Math.round((Number(d.distanceTotal) || 0) / d.trips)} km`
+          : "0 km",
     }));
 
     res.json(result);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch details" });
+    console.error("Driver utilization details error:", err);
+    res.status(500).json({ error: "Failed to fetch driver utilization details" });
   }
 });
-
 
 
 router.get("/drivers/:id/recent-trips", async (req, res) => {
@@ -1629,30 +1534,38 @@ router.get("/drivers/:id/recent-trips", async (req, res) => {
   }
 });
 
+
 // GET /api/admin/fuel-utilization/summary
-router.get("/fuel-utilization/summary", async (req, res) => {
+router.get("/fuel-utilization/summary", authenticate, async (req, res) => {
   try {
-    const result = await db.select({
-      totalLitres: sql`SUM(${fuelLogs.litres})`.mapWith(Number),
-      totalCost: sql`SUM(${fuelLogs.cost})`.mapWith(Number),
-      totalTrips: sql`COUNT(DISTINCT ${fuelLogs.tripId})`.mapWith(Number),
-      totalDistance: sql`SUM(${trips.odometerEnd} - ${trips.odometerStart})`.mapWith(Number),
-    })
-    .from(fuelLogs)
-    .leftJoin(trips, eq(fuelLogs.tripId, trips.id))
-    .where(isNotNull(fuelLogs.tripId));
+    const user = req.user;
+    const isSuperAdmin = user.role === "super_admin";
+    const entityId = user.entityId;
 
-    const { totalLitres, totalCost, totalTrips, totalDistance } = result[0];
+    // Base query
+    let query = db
+      .select({
+        totalLitres: sql`SUM(${fuelLogs.litres})`.mapWith(Number),
+        totalCost: sql`SUM(${fuelLogs.cost})`.mapWith(Number),
+        totalTrips: sql`COUNT(DISTINCT ${fuelLogs.tripId})`.mapWith(Number),
+        totalDistance: sql`SUM(${trips.odometerEnd} - ${trips.odometerStart})`.mapWith(Number),
+      })
+      .from(fuelLogs)
+      .leftJoin(trips, eq(fuelLogs.tripId, trips.id))
+      .leftJoin(vehicles, eq(fuelLogs.vehicleId, vehicles.id));
 
+    // Conditions
+    const conditions = [isNotNull(fuelLogs.tripId)];
+    if (!isSuperAdmin && entityId) conditions.push(eq(vehicles.entityId, entityId));
+
+    query = query.where(and(...conditions));
+    const result = await query;
+
+    const { totalLitres = 0, totalCost = 0, totalTrips = 0, totalDistance = 0 } = result[0] || {};
     const avgLitresPerTrip = totalTrips ? (totalLitres / totalTrips).toFixed(1) : 0;
     const avgCostPerKm = totalDistance ? (totalCost / totalDistance).toFixed(2) : 0;
 
-    res.json({
-      totalLitres,
-      totalCost,
-      avgLitresPerTrip,
-      avgCostPerKm
-    });
+    res.json({ totalLitres, totalCost, avgLitresPerTrip, avgCostPerKm });
   } catch (err) {
     console.error("Fuel summary error:", err);
     res.status(500).json({ error: "Failed to fetch fuel summary" });
@@ -1662,8 +1575,20 @@ router.get("/fuel-utilization/summary", async (req, res) => {
 
 
 // GET /api/admin/fuel-utilization/table
-router.get("/fuel-utilization/table", async (req, res) => {
+router.get("/fuel-utilization/table", authenticate, async (req, res) => {
   try {
+    const user = req.user;
+    const isSuperAdmin = user.role === "super_admin";
+    const entityId = user.entityId; // ✅ corrected from user.entity_id to user.entityId
+
+    // Base condition: only fuel logs linked to trips
+    const conditions = [isNotNull(fuelLogs.tripId)];
+
+    // Apply entity filter if NOT super admin
+    if (!isSuperAdmin && entityId) {
+      conditions.push(eq(vehicles.entityId, entityId));
+    }
+
     const result = await db
       .select({
         id: vehicles.id,
@@ -1674,14 +1599,14 @@ router.get("/fuel-utilization/table", async (req, res) => {
         totalDistance: sql`SUM(${trips.odometerEnd} - ${trips.odometerStart})`.as("totalDistance"),
       })
       .from(fuelLogs)
-      .leftJoin(vehicles, eq(fuelLogs.vehicleId, vehicles.id))
       .leftJoin(trips, eq(fuelLogs.tripId, trips.id))
+      .leftJoin(vehicles, eq(fuelLogs.vehicleId, vehicles.id))
       .leftJoin(entities, eq(vehicles.entityId, entities.id))
-      .where(isNotNull(fuelLogs.tripId))
-      .groupBy(vehicles.id, entities.name);
+      .where(and(...conditions))
+      .groupBy(vehicles.id, vehicles.plateNumber, entities.name); 
 
-    // Parse raw string numbers to Number
-    const tableData = result.map(r => {
+    // Map results with computed averages
+    const tableData = result.map((r) => {
       const litres = Number(r.totalLitresUsed ?? 0);
       const distance = Number(r.totalDistance ?? 0);
       const cost = Number(r.fuelCost ?? 0);
@@ -1690,9 +1615,9 @@ router.get("/fuel-utilization/table", async (req, res) => {
         id: r.id,
         vehicleReg: r.vehicleReg,
         entityName: r.entityName,
-        totalLitresUsed: `${litres} Litres`,
-        avgKmPerLitre: litres > 0 ? `${(distance / litres).toFixed(1)} km` : "0 km",
-        fuelCost: `E ${cost.toFixed(2)}`
+        totalLitresUsed: `${litres.toFixed(1)} Litres`,
+        avgKmPerLitre: litres > 0 ? `${(distance / litres).toFixed(1)} km/L` : "0 km/L",
+        fuelCost: `E ${cost.toFixed(2)}`,
       };
     });
 
@@ -1704,31 +1629,49 @@ router.get("/fuel-utilization/table", async (req, res) => {
 });
 
 
+
 // GET /api/admin/fuel-utilization/chart?groupBy=litres|hours
-router.get("/fuel-utilization/chart", async (req, res) => {
+router.get("/fuel-utilization/chart", authenticate, async (req, res) => {
   const groupBy = req.query.groupBy === "hours" ? "hours" : "litres"; // default to litres
 
   try {
+    const user = req.user;
+    const isSuperAdmin = user.role === "super_admin";
+    const entityId = user.entityId;
+
+    // Base conditions
+    const conditions = [
+      isNotNull(fuelLogs.tripId),
+      isNotNull(trips.checkOutTime),
+    ];
+
+    // Apply entity-based filtering for non–super admins
+    if (!isSuperAdmin && entityId) {
+      conditions.push(eq(vehicles.entityId, entityId)); // ✅ correct: filter by vehicle entity
+    }
+
     const result = await db
       .select({
-        month: sql`TO_CHAR(${fuelLogs.timestamp}, 'Mon')`,
-        year: sql`EXTRACT(YEAR FROM ${fuelLogs.timestamp})`,
-        total: groupBy === "litres"
-          ? sql`SUM(${fuelLogs.litres})`.mapWith(Number)
-          : sql`SUM(EXTRACT(EPOCH FROM (${trips.checkOutTime} - ${trips.checkInTime})) / 3600)::float`.mapWith(Number)
+        month: sql`TO_CHAR(${fuelLogs.timestamp}, 'Mon')`.as("month"),
+        year: sql`EXTRACT(YEAR FROM ${fuelLogs.timestamp})`.as("year"),
+        total:
+          groupBy === "litres"
+            ? sql`SUM(${fuelLogs.litres})`.mapWith(Number)
+            : sql`SUM(EXTRACT(EPOCH FROM (${trips.checkOutTime} - ${trips.checkInTime})) / 3600)::float`.mapWith(Number),
       })
       .from(fuelLogs)
       .leftJoin(trips, eq(fuelLogs.tripId, trips.id))
-      .where(and(
-        isNotNull(fuelLogs.tripId),
-        isNotNull(trips.checkOutTime)
-      ))
-      .groupBy(sql`TO_CHAR(${fuelLogs.timestamp}, 'Mon')`, sql`EXTRACT(YEAR FROM ${fuelLogs.timestamp})`)
+      .leftJoin(vehicles, eq(trips.vehicleId, vehicles.id)) // ✅ join vehicles to filter by entity
+      .where(and(...conditions))
+      .groupBy(
+        sql`TO_CHAR(${fuelLogs.timestamp}, 'Mon')`,
+        sql`EXTRACT(YEAR FROM ${fuelLogs.timestamp})`
+      )
       .orderBy(sql`MIN(${fuelLogs.timestamp})`);
 
-    const formatted = result.map(row => ({
-      month: row.month,
-      [groupBy]: Number(row.total.toFixed(1))
+    const formatted = result.map((row) => ({
+      month: `${row.month} ${row.year}`,
+      [groupBy]: Number(row.total?.toFixed(1) || 0),
     }));
 
     res.json(formatted);
@@ -1738,56 +1681,98 @@ router.get("/fuel-utilization/chart", async (req, res) => {
   }
 });
 
+// GET /api/admin/dashboard/driver-utilization
 
 
-
-router.get("/dashboard/summary", async (req, res) => {
+router.get("/dashboard/summary", authenticate, async (req, res) => {
   try {
-    // Basic stats and aggregations
+    const user = req.user; 
+    const isSuperAdmin = user.role === "super_admin";
+    const entityId = user.entityId; // matches schema
+
+    // Base filter for non-super admins: filter trips by vehicle's entity
+    const entityFilter = !isSuperAdmin && entityId
+      ? eq(vehicles.entityId, entityId)
+      : undefined;
+
+    // Total trips
+    const totalTripsQuery = db
+    .select({ count: sql`COUNT(*)` })
+    .from(trips)
+    .leftJoin(vehicles, eq(trips.vehicleId, vehicles.id));
+
+    if (entityFilter) totalTripsQuery.where(entityFilter);
+
+    // Top driver
+    const topDriverQuery = db
+      .select({
+        name: usersTable.fullname,
+        trips: sql`COUNT(*)`,
+      })
+      .from(trips)
+      .leftJoin(usersTable, eq(trips.driverId, usersTable.id))
+      .leftJoin(vehicles, eq(trips.vehicleId, vehicles.id))
+      .groupBy(usersTable.fullname)
+      .orderBy(sql`COUNT(*) DESC`)
+      .limit(1);
+    if (entityFilter) topDriverQuery.where(entityFilter);
+
+    // Top vehicle
+    const topVehicleQuery = db
+      .select({
+        plate: vehicles.plateNumber,
+        km: sql`SUM(${trips.odometerEnd} - ${trips.odometerStart})`,
+      })
+      .from(trips)
+      .leftJoin(vehicles, eq(trips.vehicleId, vehicles.id))
+      .groupBy(vehicles.plateNumber)
+      .orderBy(sql`SUM(${trips.odometerEnd} - ${trips.odometerStart}) DESC`)
+      .limit(1);
+    if (entityFilter) topVehicleQuery.where(entityFilter);
+
+    // Trip distances
+    const tripDistancesQuery = db
+      .select({ totalKm: sql`SUM(${trips.odometerEnd} - ${trips.odometerStart})` })
+      .from(trips)
+      .leftJoin(vehicles, eq(trips.vehicleId, vehicles.id));
+    if (entityFilter) tripDistancesQuery.where(entityFilter);
+
+    // Fuel data
+    const fuelDataQuery = db
+      .select({
+        totalLitres: sql`SUM(${fuelLogs.litres})`,
+        totalCost: sql`SUM(${fuelLogs.cost})`,
+      })
+      .from(fuelLogs)
+      .leftJoin(trips, eq(fuelLogs.tripId, trips.id))
+      .leftJoin(vehicles, eq(trips.vehicleId, vehicles.id));
+    if (entityFilter) fuelDataQuery.where(entityFilter);
+
+    // Execute queries in parallel
     const [totalTrips, topDriver, topVehicle, tripDistances, fuelData] = await Promise.all([
-      db.select({ count: sql`COUNT(*)` }).from(trips),
-      db
-        .select({ name: usersTable.fullname, trips: sql`COUNT(*)` })
-        .from(trips)
-        .leftJoin(usersTable, eq(trips.driverId, usersTable.id))
-        .groupBy(usersTable.fullname)
-        .orderBy(sql`COUNT(*) DESC`)
-        .limit(1),
-      db
-        .select({ plate: vehicles.plateNumber, km: sql`SUM("trips"."odometer_end" - "trips"."odometer_start")` })
-        .from(trips)
-        .leftJoin(vehicles, eq(trips.vehicleId, vehicles.id))
-        .groupBy(vehicles.plateNumber)
-        .orderBy(sql`SUM("trips"."odometer_end" - "trips"."odometer_start") DESC`)
-        .limit(1),
-
-      // Sum total km traveled for all trips
-      db.select({
-        totalKm: sql`SUM("odometer_end" - "odometer_start")`
-      }).from(trips),
-
-      // Sum total litres and total cost from fuel logs
-      db.select({
-        totalLitres: sql`SUM(litres)`,
-        totalCost: sql`SUM(cost)`
-      }).from(fuelLogs),
+      totalTripsQuery,
+      topDriverQuery,
+      topVehicleQuery,
+      tripDistancesQuery,
+      fuelDataQuery,
     ]);
 
-    // Extract total km, litres and cost safely
     const totalKm = Number(tripDistances[0]?.totalKm || 0);
     const totalLitres = Number(fuelData[0]?.totalLitres || 0);
     const totalCost = Number(fuelData[0]?.totalCost || 0);
 
-    // Calculate fuel efficiency (litres per 100 km)
     const litresPer100Km = totalKm > 0 ? (totalLitres / totalKm) * 100 : 0;
-
-    // Calculate cost per km
-    const costPerKm = totalKm > 0 ? (totalCost / totalKm) : 0;
+    const costPerKm = totalKm > 0 ? totalCost / totalKm : 0;
 
     res.json({
-      totalTrips: Number(totalTrips[0].count),
-      topDriver: topDriver[0]?.name + ` (${topDriver[0]?.trips} trips)`,
-      topVehicle: topVehicle[0]?.plate + ` (${topVehicle[0]?.km} km)`,
+      scope: isSuperAdmin ? "all entities" : `entity ${entityId}`,
+      totalTrips: Number(totalTrips[0]?.count || 0),
+      topDriver: topDriver[0]
+        ? `${topDriver[0].name} (${topDriver[0].trips} trips)`
+        : "No data",
+      topVehicle: topVehicle[0]
+        ? `${topVehicle[0].plate} (${topVehicle[0].km} km)`
+        : "No data",
       litresPer100Km: litresPer100Km.toFixed(2),
       costPerKm: costPerKm.toFixed(2),
     });
@@ -1798,16 +1783,83 @@ router.get("/dashboard/summary", async (req, res) => {
 });
 
 
-// GET /api/admin/dashboard/driver-utilization
-router.get("/dashboard/driver-utilization", async (req, res) => {
+// router.get("/dashboard/driver-utilization", authenticate, async (req, res) => {
+//   try {
+//     const user = req.user;
+//     const isSuperAdmin = user.role === "super_admin";
+//     const entityId = user.entityId; // match schema
+
+//     if (!["admin", "super_admin"].includes(user.role)) {
+//       return res.status(403).json({ message: "Access denied" });
+//     }
+
+//     const query = db
+//       .select({
+//         name: usersTable.fullname,
+//         trips: sql`COUNT(*)`,
+//       })
+//       .from(trips)
+//       .leftJoin(usersTable, eq(trips.driverId, usersTable.id))
+//       .leftJoin(vehicles, eq(trips.vehicleId, vehicles.id)) // join vehicles for entity filter
+//       .groupBy(usersTable.fullname)
+//       .orderBy(sql`COUNT(*) DESC`)
+//       .limit(5);
+
+//     // Apply entity filter via vehicles.entityId for non-super admins
+//     if (!isSuperAdmin && entityId) {
+//       query.where(eq(vehicles.entityId, entityId));
+//     }
+
+//     const result = await query;
+
+//     res.json({
+//       scope: isSuperAdmin ? "all entities" : `entity ${entityId}`,
+//       topDrivers: result,
+//     });
+//   } catch (err) {
+//     console.error("Driver utilization error:", err);
+//     res.status(500).json({ message: "Failed to fetch driver utilization" });
+//   }
+// });
+
+router.get("/dashboard/driver-utilization", authenticate, async (req, res) => {
   try {
-    const result = await db
-      .select({ name: usersTable.fullname, trips: sql`COUNT(*)` })
-      .from(trips)
-      .leftJoin(usersTable, eq(trips.driverId, usersTable.id))
-      .groupBy(usersTable.fullname)
-      .orderBy(sql`COUNT(*) DESC`)
+    const user = req.user;
+    const isSuperAdmin = user.role === "super_admin";
+    const entityId = user.entityId;
+
+    if (!["admin", "super_admin"].includes(user.role)) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    let query = db
+      .select({
+        driverId: usersTable.id,
+        name: usersTable.fullname,
+        totalDistance: sql`
+          COALESCE(
+            SUM(${trips.odometerEnd} - ${trips.odometerStart}), 
+            0
+          )::int
+        `,
+        tripCount: sql`COUNT(${trips.id})::int`,
+      })
+      .from(usersTable)
+      .leftJoin(trips, eq(trips.driverId, usersTable.id))
+      .where(
+        and(
+          eq(usersTable.role, 'driver'),
+          isSuperAdmin || !entityId 
+            ? undefined 
+            : eq(usersTable.entityId, entityId)
+        )
+      )
+      .groupBy(usersTable.id, usersTable.fullname)
+      .orderBy(sql`SUM(${trips.odometerEnd} - ${trips.odometerStart}) DESC NULLS LAST`)
       .limit(5);
+
+    const result = await query;
+
     res.json(result);
   } catch (err) {
     console.error("Driver utilization error:", err);
@@ -1815,16 +1867,35 @@ router.get("/dashboard/driver-utilization", async (req, res) => {
   }
 });
 
-
-// GET /api/admin/dashboard/vehicle-utilization
-router.get("/dashboard/vehicle-utilization", async (req, res) => {
+router.get("/dashboard/vehicle-utilization", authenticate, async (req, res) => {
   try {
-    const result = await db
-      .select({ name: vehicles.plateNumber, km: sql`SUM("trips"."odometer_end" - "trips"."odometer_start")` })
+    const user = req.user; // JWT middleware sets req.user
+    if (!user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const isSuperAdmin = user.role === "super_admin";
+    const entityId = user.entityId;
+
+    // Base query: trips joined with vehicles
+    let query = db
+      .select({
+        name: vehicles.plateNumber,
+        km: sql`SUM(${trips.odometerEnd} - ${trips.odometerStart})`,
+      })
       .from(trips)
-      .leftJoin(vehicles, eq(trips.vehicleId, vehicles.id))
+      .leftJoin(vehicles, eq(trips.vehicleId, vehicles.id));
+
+    // Apply entity filter for non-super-admins
+    if (!isSuperAdmin && entityId) {
+      query.where(eq(vehicles.entityId, entityId));
+    }
+
+    const result = await query
       .groupBy(vehicles.plateNumber)
-      .orderBy(sql`SUM("trips"."odometer_end" - "trips"."odometer_start") DESC`)
+      .orderBy(
+        sql`SUM(${trips.odometerEnd} - ${trips.odometerStart}) DESC`
+      )
       .limit(5);
 
     res.json(result);
@@ -1833,12 +1904,6 @@ router.get("/dashboard/vehicle-utilization", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch vehicle utilization" });
   }
 });
-
-
-
-
-
-
 
 
 router.get("/me", authenticate, async (req, res) => {
@@ -1892,29 +1957,6 @@ router.put("/settings", authenticate, async (req, res) => {
 });
 
 
-
-
-
-// GET /api/admin/supervisor-assignments
-// router.get("/supervisor-assignments", async (req, res) => {
-//   try {
-//     const assignments = await db
-//       .select({
-//         id: supervisions.id,
-//         supervisorId: supervisions.supervisorId,
-//         supervisorName: sql`(SELECT fullname FROM users WHERE id = ${supervisions.supervisorId})`,
-//         driverId: supervisions.driverId,
-//         driverName: sql`(SELECT fullname FROM users WHERE id = ${supervisions.driverId})`,
-//         createdAt: supervisions.createdAt,
-//       })
-//       .from(supervisions);
-
-//     res.json(assignments);
-//   } catch (err) {
-//     console.error("Error fetching supervisor assignments:", err);
-//     res.status(500).json({ message: "Failed to fetch supervisor assignments" });
-//   }
-// });
 
 router.get("/supervisor-assignments", authenticate, async (req, res) => {
   try {
@@ -2088,54 +2130,6 @@ router.get("/supervisors/entities", authenticate, async (req, res) => {
     res.status(500).json({ message: "Failed to fetch entities" });
   }
 });
-
-// router.post("/supervisors", async (req, res) => {
-//   const { fullname, username, password, phoneNumber, region, entityId } = req.body;
-
-//   try {
-//     // case-insensitive username check
-//    const existing = await db
-//   .select()
-//   .from(usersTable)
-//   .where(eq(sql`LOWER(${usersTable.username})`, username.toLowerCase()))
-//   .limit(1);
-
-//     if (existing.length > 0) {
-//       return res.status(400).json({ message: "Username already exists" });
-//     }
-
-//     const hashedPassword = await bcrypt.hash(password, 10);
-
-//     // ✅ Wrap both inserts in a transaction
-//     const result = await db.transaction(async (tx) => {
-//       const [newUser] = await tx
-//         .insert(usersTable)
-//         .values({
-//           fullname,
-//           username,
-//           password: hashedPassword,
-//           role: "supervisor",
-//         })
-//         .returning({ id: usersTable.id });
-
-//       await tx.insert(supervisors).values({
-//         id: newUser.id,
-//         phone: phoneNumber,
-//         region,
-//         assignedEntityId: entityId,
-//       });
-
-//       return newUser;
-//     });
-
-//     res.json({ message: "Supervisor created successfully", id: result.id });
-//   } catch (error) {
-//     console.error("Failed to create supervisor:", error);
-//     res.status(500).json({ message: "Failed to create supervisor" });
-//   }
-// })
-
-
 
 router.post("/supervisors", async (req, res) => {
   console.log("\nIncoming POST /supervisors request");

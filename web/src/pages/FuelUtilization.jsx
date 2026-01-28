@@ -14,19 +14,37 @@ const FuelUtilization = () => {
   const [tableData, setTableData] = useState([]);
 
   useEffect(() => {
-    const fetchAll = async () => {
+  const fetchAll = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("No token found. Please log in.");
+
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      };
+
       const [sumRes, chartRes, tableRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/admin/fuel-utilization/summary`),
-        fetch(`${API_BASE_URL}/api/admin/fuel-utilization/chart?groupBy=${filter}`),
-        fetch(`${API_BASE_URL}/api/admin/fuel-utilization/table`),
+        fetch(`${API_BASE_URL}/api/admin/fuel-utilization/summary`, { headers }),
+        fetch(`${API_BASE_URL}/api/admin/fuel-utilization/chart?groupBy=${filter}`, { headers }),
+        fetch(`${API_BASE_URL}/api/admin/fuel-utilization/table`, { headers }),
       ]);
+
+      if (!sumRes.ok || !chartRes.ok || !tableRes.ok) {
+        throw new Error("Failed to fetch one or more fuel utilization endpoints");
+      }
 
       setSummary(await sumRes.json());
       setChartData(await chartRes.json());
       setTableData(await tableRes.json());
-    };
-    fetchAll();
-  }, [filter]);
+    } catch (err) {
+      console.error("Error fetching fuel utilization data:", err);
+    }
+  };
+
+  fetchAll();
+}, [filter]);
+
 
   const columns = [
     { key: "vehicleReg", title: "Vehicle" },

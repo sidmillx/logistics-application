@@ -13,39 +13,69 @@ const DriverUtilization = () => {
   const [chartData, setChartData] = useState([]);
   const [tableData, setTableData] = useState([]);
 
-  useEffect(() => {
-    const fetchSummary = async () => {
-      const url = `${API_BASE_URL}/api/admin/drivers/utilization/summary?_=${Date.now()}`
-      console.log("Fetching driver utilization summary from:", url);
-      const res = await fetch(url);
-     
-      const data = await res.json();
+ useEffect(() => {
+  const fetchSummary = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("No token found. Please log in.");
 
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      };
+
+      const url = `${API_BASE_URL}/api/admin/drivers/utilization/summary?_=${Date.now()}`;
+      console.log("Fetching driver utilization summary from:", url);
+
+      const res = await fetch(url, { headers });
+      if (!res.ok) throw new Error("Failed to fetch summary");
+
+      const data = await res.json();
       console.log("Raw API response:", data);
 
       setSummary({
         totalActiveDrivers: parseInt(data.totalActiveDrivers, 10) || 0,
         totalTrips: parseInt(data.totalTrips, 10) || 0,
-        avgTripsPerDriver: parseFloat(data.avgTripsPerDriver) || 0
+        avgTripsPerDriver: parseFloat(data.avgTripsPerDriver) || 0,
       });
-    };
-    fetchSummary();
+    } catch (err) {
+      console.error("Error fetching summary:", err);
+    }
+  };
 
-    const fetchDetails = async () => {
-      const res = await fetch(`${API_BASE_URL}/api/admin/drivers/utilization/details`);
+  const fetchDetails = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("No token found. Please log in.");
+
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      };
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/drivers/utilization/details`, { headers });
+      if (!res.ok) throw new Error("Failed to fetch driver details");
+
       const data = await res.json();
       setTableData(data);
 
-      // Build monthly chart data from detail records
-      // Example aggregates here; adjust based on backend returns
-      setChartData(data.map(d => ({
-        month: new Date().toLocaleString("default", { month: "short" }),
-        trips: d.trips,
-        hours: d.hours
-      })));
-    };
-    fetchDetails();
-  }, []);
+      // Example monthly chart data
+      setChartData(
+        data.map((d) => ({
+          month: new Date().toLocaleString("default", { month: "short" }),
+          trips: d.trips,
+          hours: d.hours,
+        }))
+      );
+    } catch (err) {
+      console.error("Error fetching details:", err);
+    }
+  };
+
+  fetchSummary();
+  fetchDetails();
+}, []);
+
 
   const columns = [
     { key: "name", title: "Driver Name" },
